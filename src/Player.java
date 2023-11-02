@@ -2,7 +2,6 @@ package src;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.DatagramPacket;
@@ -12,23 +11,19 @@ import java.net.Socket;
 import java.util.ArrayList;
 
 public class Player implements Runnable {
-    public Socket socket;
-    public ArrayList<TemporaryPlayerData> tempDataList; // lista dei dati temporanei condivisa tra i thread.
-    public ArrayList<Account> userList; // lista dei dati permanenti condivisa tra i thread.
-    public String username; // viene salvato lo username con cui viene fatto il login.
-    public boolean isLogged; // per impedire ad un altro client di fare login con lo stesso username.
-    public InputStream instream;
-    public BufferedReader in;
-    public PrintWriter out;
+    private ArrayList<Account> userList; // lista dei dati permanenti condivisa tra i thread.
+    private ArrayList<TemporaryPlayerData> tempDataList; // lista dei dati temporanei condivisa tra i thread.
+    private String username; // viene salvato lo username con cui viene fatto il login.
+    private boolean isLogged; // per impedire ad un altro client di fare login con lo stesso username.
+    private BufferedReader in;
+    private PrintWriter out;
 
     public Player(Socket socket, ArrayList<TemporaryPlayerData> tempDataList, ArrayList<Account> userList)
             throws IOException {
-        this.socket = socket;
         this.tempDataList = tempDataList;
         this.userList = userList;
         this.isLogged = false;
-        instream = socket.getInputStream();
-        in = new BufferedReader(new InputStreamReader(instream));
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new PrintWriter(socket.getOutputStream(), true);
     }
 
@@ -275,12 +270,10 @@ public class Player implements Runnable {
 
         try {
             // setup delle impostazioni per il multicast.
-            int portMulticast = 3002;
-            int TTL = 255;
-            String addr = "239.255.255.255";
+            int portMulticast = 3002, TTL = 255;
 
             // il server si unisce al gruppo multicast.
-            InetAddress multiAddr = InetAddress.getByName(addr);
+            InetAddress multiAddr = InetAddress.getByName("239.255.255.255");
             MulticastSocket multiSocket = new MulticastSocket(portMulticast);
             multiSocket.setTimeToLive(TTL);
             multiSocket.joinGroup(multiAddr);

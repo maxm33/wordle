@@ -1,7 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.DatagramPacket;
@@ -57,12 +56,7 @@ public class ClientMain {
 
     public static void main(String[] args) throws IOException, UnknownHostException {
         // setup dei parametri del client.
-        int port = 3000;
-        int portMulticast = 3002;
-        int TTL = 255;
-        int timeoutReceive = 1000;
-        String addr = "127.0.0.1";
-        String multaddr = "239.255.255.255";
+        int port = 3000, portMulticast = 3002, TTL = 255, timeoutReceive = 1000;
 
         int guesses = 0;
         boolean isLogged = false, isGuessed = false;
@@ -70,12 +64,9 @@ public class ClientMain {
         String username = new String(), line = new String(), response = new String();
         BufferedReader input = new BufferedReader(new InputStreamReader(System.in)); // stdin.
 
-        // indirizzo del localhost.
-        InetAddress ipAddr = InetAddress.getByName(addr);
         // la connessione request/response.
-        Socket socket = new Socket(ipAddr, port);
-        InputStream instream = socket.getInputStream();
-        BufferedReader in = new BufferedReader(new InputStreamReader(instream));
+        Socket socket = new Socket("localhost", port);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
         // un loop in cui il client aspetta un messaggio
@@ -107,13 +98,13 @@ public class ClientMain {
                     out.println("exit, , ");
                     return;
                 default:
-                    System.out.println("ERROR - Invalid action. Please try again.\n");
+                    System.out.println("ERROR - Invalid action. Please try again.");
                     break;
             }
         }
         // il client si unisce al gruppo multicast perchè
         // ha fatto login con successo.
-        InetAddress multiAddr = InetAddress.getByName(multaddr);
+        InetAddress multiAddr = InetAddress.getByName("239.255.255.255");
         MulticastSocket multiSocket = new MulticastSocket(portMulticast);
         multiSocket.setSoTimeout(timeoutReceive);
         multiSocket.setTimeToLive(TTL);
@@ -134,13 +125,13 @@ public class ClientMain {
             isGuessed = Boolean.parseBoolean(info[1]);
 
             if (guesses == 0 || isGuessed == true) {
-                System.out.println("You can't try anymore for now, press any key to refresh...");
+                System.out.println("You can't try anymore for now, press 'enter' to refresh...");
                 line = input.readLine();
                 continue;
             }
 
             System.out.printf(
-                    "\nHi %s!\nThis is what you can do:\n1) sendWord <word> (to try guessing the current word)\n2) skip (to skip and refresh on current word, if the skipped word was the actual current word, you will have to wait for a new word)\n3) sendStats (to get your account stats)\n4) showSharings (to show notifications about other's results)\n5) logout (to exit the session)\n\nGuesses remaining: %s\n\n",
+                    "\n************************\nHi %s!\nThis is what you can do:\n1) sendWord <word> (to try guessing the word)\n2) skip (counts as a loss and you'll have to wait for a new word)\n3) sendStats (to get your account stats)\n4) showSharings (to show notifications about other players' results)\n5) logout (to exit the session)\n\nGuesses remaining: %s\n************************\n\n",
                     username, guesses);
 
             // loop del gioco, viene eseguito finchè il giocatore non ha indovinato,
@@ -171,11 +162,11 @@ public class ClientMain {
                         case "sendWord":
                             try {
                                 if (parts[1].length() != 10) {
-                                    System.out.println("\nWord is not 10 characters.\n");
+                                    System.out.println("ERROR - Word is not 10 characters.");
                                     continue;
                                 }
                                 if (!checkVocabulary(parts[1])) {
-                                    System.out.println("\nWord is not in vocabulary.\n");
+                                    System.out.println("ERROR - Word is not in vocabulary.");
                                     continue;
                                 }
                                 guesses--;
@@ -192,14 +183,14 @@ public class ClientMain {
                                 if (line.contentEquals("true")) {
                                     isGuessed = true;
                                     out.println("won," + Integer.toString(12 - guesses));
-                                    System.out.println("YOU HAVE WON!! Do you want to share it with everybody? y/n");
+                                    System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
                                     response = input.readLine();
                                     if (response.contentEquals("y"))
                                         out.println(
                                                 "share," + username + "," + parts[1] + ","
                                                         + Integer.toString(12 - guesses)); // richiesta di share.
                                     else
-                                        System.out.println("\nAlright then...keep your secrets...\n");
+                                        System.out.println("Alright then...keep your secrets...");
                                 }
                                 // se i tentativi rimanenti sono 0 e la parola
                                 // non è stata indovinata, è una sconfitta e viene
@@ -209,7 +200,7 @@ public class ClientMain {
                                 else if (guesses == 0 && !isGuessed)
                                     out.println("lost");
                             } catch (ArrayIndexOutOfBoundsException exception) {
-                                System.out.println("\nInvalid format. Please try again.\n");
+                                System.out.println("ERROR - Invalid format. Please try again.");
                                 continue;
                             }
                             break;
@@ -233,19 +224,19 @@ public class ClientMain {
                             if (Float.parseFloat(stats[1]) != 0)
                                 percentage = (Float.parseFloat(stats[2]) / Float.parseFloat(stats[1])) * 100;
                             System.out.printf(
-                                    "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %.1f\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %.1f\n",
+                                    "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %.1f\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %.1f\n\n",
                                     stats[0], stats[1], stats[2], percentage, stats[3], stats[4],
                                     Float.parseFloat(stats[5]));
                             break;
                         // printa tutte le notifiche presenti nella lista
                         // e le rimuove perchè sono già state visualizzate.
                         case "showSharings":
-                            System.out.println("\nRetrieving notifications, please wait...\n");
+                            System.out.println("Retrieving notifications, please wait...\n");
                             for (int i = 0; i < notificationList.size(); i++) {
                                 System.out.println(notificationList.get(i));
                                 notificationList.remove(i);
                             }
-                            System.out.println("Done.");
+                            System.out.println("Done.\n");
                             break;
                         // se un giocatore non vuole più provare ad indovinare la parola,
                         // può skipparla. Se ce ne sono altre nel buffer, verranno scartate
@@ -254,12 +245,12 @@ public class ClientMain {
                         // la generazione della prossima parola. Uno skip azzera i tentativi
                         // rimanenti sulla parola, quindi conta come una sconfitta.
                         case "skip":
-                            System.out.println("\nWord skipped.");
+                            System.out.println("Word skipped.");
                             out.println("lost");
                             isGuessed = true;
                             continue;
                         default:
-                            System.out.println("ERROR - Invalid action. Please try again.\n");
+                            System.out.println("ERROR - Invalid action. Please try again.");
                             continue;
                     }
                 }

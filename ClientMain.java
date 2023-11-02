@@ -16,25 +16,19 @@ public class ClientMain {
     // metodo per richiedere username e password durante register e login.
     public static String[] askCredentials(BufferedReader input) throws IOException {
         String[] credentials = new String[2];
-        boolean finished = false;
-        while (!finished) {
+        while (true) {
             System.out.println("Enter your username:");
             credentials[0] = input.readLine();
-            if (credentials[0] == null)
+            if (credentials[0] == null || credentials[0].isBlank())
                 continue;
-            if (credentials[0].isBlank())
-                continue;
-            finished = true;
+            break;
         }
-        finished = false;
-        while (!finished) {
+        while (true) {
             System.out.println("Enter your password:");
             credentials[1] = input.readLine();
-            if (credentials[1] == null)
+            if (credentials[1] == null || credentials[1].isBlank())
                 continue;
-            if (credentials[1].isBlank())
-                continue;
-            finished = true;
+            break;
         }
         return credentials;
     }

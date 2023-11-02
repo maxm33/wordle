@@ -27,16 +27,13 @@ public class Player implements Runnable {
         out = new PrintWriter(socket.getOutputStream(), true);
     }
 
-    public int searchUserForRegLog(String username, String password) {
+    public boolean validateUser(String username, String password) {
         for (int i = 0; i < this.userList.size(); i++) {
             Account item = this.userList.get(i);
-            if (item.username.contentEquals(username) && item.password.contentEquals(password)) {
-                return 1;
-            } else if (item.username.contentEquals(username)) {
-                return -1;
-            }
+            if (item.username.contentEquals(username) && item.password.contentEquals(password))
+                return true;
         }
-        return 0;
+        return false;
     }
 
     // metodo che restituisce l'indice dello user cercato nella lista dei dati
@@ -60,26 +57,22 @@ public class Player implements Runnable {
     }
 
     // metodo che aggiunge un utente, se nuovo, nella lista dati permanenti.
-    public synchronized int register(String username, String password) throws IOException {
-        int isRegistered = searchUserForRegLog(username, password);
-        if (isRegistered == -1) {
-            out.println("ERROR - username is taken already.");
-            return -1;
-        } else if (isRegistered == 1) {
-            out.println("ERROR - user is registered already. Please log in.");
-            return -1;
+    public synchronized boolean register(String username, String password) throws IOException {
+        int index = getUserInPerm(username);
+        if (index != -1) {
+            out.println("ERROR - this username is registered already. Please log in.");
+            return false;
         } else {
             Account newAccount = new Account(username, password);
             this.userList.add(newAccount);
             out.println("OK - user successfully registered! Please log in.");
-            return 0;
+            return true;
         }
     }
 
     // metodo per il login del giocatore.
     public synchronized boolean login(String username, String password) throws IOException {
-        int isRegistered = searchUserForRegLog(username, password);
-        if (isRegistered == 1) {
+        if (validateUser(username, password)) {
             int index = getUserInTemp(username);
             if (index != -1) {
                 TemporaryPlayerData item = this.tempDataList.get(index);

@@ -26,7 +26,7 @@ public class ServerMain {
 
   // metodo che genera un numero casuale che corrisponde al numero
   // di una riga del file delle parole e quindi è la parola che sarà estratta.
-  private static void generateNewWord() throws IOException {
+  private static void generateWord() throws IOException {
     int numline = (int) (Math.random() * 30825.0);
     Stream<String> lines = Files.lines(Paths.get("files/words.txt"));
     word = lines.skip(numline).findFirst().get();
@@ -44,27 +44,11 @@ public class ServerMain {
     }
   }
 
-  // metodo per monitorare lo standard input del server,
-  // necessario per avviare la procedura di salvataggio dei progressi
-  // permanenti sul file json.
-  private static String saveStateOnInputDemand(BufferedReader input) throws IOException {
-    String result = new String();
-    while (input.ready()) {
-      result = input.readLine();
-    }
-    if (result.length() != 9) {
-      return null;
-    }
-    return result;
-  }
-
   public static void main(String[] args) throws Exception {
     // setup dei parametri del server.
-    int port = 3000;
-    int timeoutAccept = 10000;
-    int timeoutWord = 300000; // a new word is generated every 5 minutes
+    int port = 3000, timeoutAccept = 5000, timeoutWord = 300000; // a new word is generated every 5 minutes
 
-    String resultInput = new String();
+    String readLine = new String();
 
     BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 
@@ -90,7 +74,7 @@ public class ServerMain {
       reader.close();
     }
 
-    generateNewWord(); // viene estratta la prima parola.
+    generateWord(); // viene estratta la prima parola.
     long whenWordIsGenerated = System.currentTimeMillis();
     System.out.println("Server is running...");
 
@@ -104,20 +88,26 @@ public class ServerMain {
         // ogni x secondi viene generata
         // una nuova parola e viene inoltrata.
         if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) {
-          generateNewWord();
+          generateWord();
           resetTempData(tempDataList);
           System.out.println(word); ////////////////////////////////// per testing
           whenWordIsGenerated = System.currentTimeMillis();
         }
-        // controllo dello standard input e salvataggio se richiesto.
-        resultInput = saveStateOnInputDemand(input);
-        if (resultInput != null && resultInput.contentEquals("savestate")) {
-          System.out.println("Saving the server state...");
-          String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(userList);
-          BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
-          printerJSON.write(json);
-          printerJSON.close();
-          System.out.println("Done.");
+        // controllo del stdin e salvataggio dati se richiesto.
+        while (input.ready()) {
+          readLine = input.readLine();
+        }
+        if (!readLine.isBlank()) {
+          if (readLine.contentEquals("savestate")) {
+            System.out.println("Saving the server state...");
+            String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(userList);
+            BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
+            printerJSON.write(json);
+            printerJSON.close();
+            System.out.println("Done.");
+          } else
+            System.out.println("ERROR - Invalid action. Please try again.");
+          readLine = "";
         }
       }
     }

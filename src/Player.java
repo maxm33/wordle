@@ -27,7 +27,7 @@ public class Player implements Runnable {
         out = new PrintWriter(socket.getOutputStream(), true);
     }
 
-    public boolean validateUser(String username, String password) {
+    private boolean validateUser(String username, String password) {
         for (int i = 0; i < this.userList.size(); i++) {
             Account item = this.userList.get(i);
             if (item.username.contentEquals(username) && item.password.contentEquals(password))
@@ -38,7 +38,7 @@ public class Player implements Runnable {
 
     // metodo che restituisce l'indice dello user cercato nella lista dei dati
     // permanenti, o -1 se non c'è.
-    public int getUserInPerm(String username) {
+    private int getUserInPerm(String username) {
         for (int i = 0; i < this.userList.size(); i++) {
             if (this.userList.get(i).username.contentEquals(username))
                 return i;
@@ -48,7 +48,7 @@ public class Player implements Runnable {
 
     // metodo che restituisce l'indice dello user cercato nella lista dei dati
     // temporanei, o -1 se non c'è.
-    public int getUserInTemp(String username) {
+    private int getUserInTemp(String username) {
         for (int i = 0; i < this.tempDataList.size(); i++) {
             if (this.tempDataList.get(i).username.contentEquals(username))
                 return i;
@@ -57,7 +57,7 @@ public class Player implements Runnable {
     }
 
     // metodo che aggiunge un utente, se nuovo, nella lista dati permanenti.
-    public synchronized boolean register(String username, String password) throws IOException {
+    private synchronized boolean register(String username, String password) throws IOException {
         int index = getUserInPerm(username);
         if (index != -1) {
             out.println("ERROR - this username is registered already. Please log in.");
@@ -71,7 +71,7 @@ public class Player implements Runnable {
     }
 
     // metodo per il login del giocatore.
-    public synchronized boolean login(String username, String password) throws IOException {
+    private synchronized boolean login(String username, String password) throws IOException {
         if (validateUser(username, password)) {
             int index = getUserInTemp(username);
             if (index != -1) {
@@ -100,7 +100,7 @@ public class Player implements Runnable {
     }
 
     // metodo per il logout del giocatore.
-    public synchronized boolean logout() throws IOException {
+    private synchronized boolean logout() throws IOException {
         int index = getUserInTemp(this.username);
         if (index != -1) {
             TemporaryPlayerData item = this.tempDataList.get(index);
@@ -117,7 +117,7 @@ public class Player implements Runnable {
 
     // metodo per decrementare i guess rimanenti del giocatore ad ogni suo
     // tentativo.
-    public synchronized void decrementGuesses() {
+    private synchronized void decrementGuesses() {
         int index = getUserInTemp(this.username);
         if (index != -1) {
             TemporaryPlayerData item = this.tempDataList.get(index);
@@ -128,7 +128,7 @@ public class Player implements Runnable {
 
     // metodo che invia al client info sulla partita corrente per il giocatore
     // richiesto.
-    public void getGuessesAndGuessed() throws IOException {
+    private void getGuessesAndGuessed() throws IOException {
         int index = getUserInTemp(this.username);
         if (index != -1) {
             TemporaryPlayerData item = this.tempDataList.get(index);
@@ -138,7 +138,7 @@ public class Player implements Runnable {
 
     // metodo che aggiorna le statistiche (nella lista dei dati permanenti)
     // quando il giocatore vince. Aggiorna dei dati anche nella lista temporanea.
-    public synchronized void updateStatsOnWin(int tries) {
+    private synchronized void updateStatsOnWin(int tries) {
         int index = getUserInPerm(this.username);
         if (index != -1) {
             Account item = this.userList.get(index);
@@ -163,7 +163,7 @@ public class Player implements Runnable {
     // metodo che aggiorna le statistiche (nella lista dei dati permanenti)
     // quando il giocatore perde o skippa la parola. Aggiorna dei dati anche nella
     // lista temporanea.
-    public synchronized void updateStatsOnLoss() {
+    private synchronized void updateStatsOnLoss() {
         int index = getUserInPerm(this.username);
         if (index != -1) {
             Account item = this.userList.get(index);
@@ -180,7 +180,7 @@ public class Player implements Runnable {
     }
 
     // metodo che passa al client le statistiche del giocatore.
-    public void getAccountStats() throws IOException {
+    private void getAccountStats() throws IOException {
         int index = getUserInPerm(this.username);
         if (index != -1) {
             Account item = this.userList.get(index);
@@ -200,7 +200,7 @@ public class Player implements Runnable {
     }
 
     // printa le liste dei dati permanenti e temporanei, per testing.
-    public void printList() throws IOException {
+    private void printList() throws IOException {
         System.out.println("*****************************************");
         for (int i = 0; i < this.userList.size(); i++) {
             Account item = this.userList.get(i);

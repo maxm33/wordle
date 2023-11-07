@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 public class ClientMain {
     // metodo per richiedere username e password durante register e login.
-    public static String[] askCredentials(BufferedReader input) throws IOException {
+    private static String[] askCredentials(BufferedReader input) throws IOException {
         String[] credentials = new String[2];
         while (true) {
             System.out.println("Enter your username:");
@@ -34,7 +34,7 @@ public class ClientMain {
     }
 
     // metodo che verifica se la parola inserita è presente nel file delle parole.
-    public static boolean checkVocabulary(String word) throws IOException {
+    private static boolean checkVocabulary(String word) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader("files/words.txt"));
         String line = reader.readLine();
         while (line != null) {

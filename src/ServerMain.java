@@ -13,6 +13,7 @@ import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
@@ -26,18 +27,21 @@ public class ServerMain {
 
   // metodo che genera un numero casuale che corrisponde al numero
   // di una riga del file delle parole e quindi è la parola che sarà estratta.
-  private static void generateWord() throws IOException {
-    int numline = (int) (Math.random() * 30825.0);
-    Stream<String> lines = Files.lines(Paths.get("files/words.txt"));
-    word = lines.skip(numline).findFirst().get();
-    lines.close();
+  private static void generateWord(String dictionary) throws IOException {
+    Stream<String> counting_lines = Files.lines(Paths.get(dictionary));
+    int numlines = (int) counting_lines.count();
+    counting_lines.close();
+    int selectedLine = (int) (Math.random() * (numlines + 1));
+    Stream<String> selecting_lines = Files.lines(Paths.get(dictionary));
+    word = selecting_lines.skip(selectedLine).findFirst().get();
+    selecting_lines.close();
   }
 
   // metodo che resetta i dati temporanei di tutti i giocatori.
-  private static void resetTempData(ArrayList<TemporaryPlayerData> tempDataList) {
+  private static void resetTempData(ArrayList<TemporaryPlayerData> tempDataList, int guessLimit) {
     for (int i = 0; i < tempDataList.size(); i++) {
       TemporaryPlayerData item = tempDataList.get(i);
-      item.guesses = 12;
+      item.guesses = guessLimit;
       item.word = ServerMain.word;
       item.isGuessed = false;
       tempDataList.set(i, item);
@@ -45,8 +49,16 @@ public class ServerMain {
   }
 
   public static void main(String[] args) throws Exception {
+    // loading properties
+    FileReader config = new FileReader("files/config.config");
+    Properties prop = new Properties();
+    prop.load(config);
     // setup dei parametri del server.
-    int port = 3000, timeoutAccept = 5000, timeoutWord = 300000; // a new word is generated every 5 minutes
+    int port = Integer.parseInt(prop.getProperty("port"));
+    int timeoutAccept = Integer.parseInt(prop.getProperty("accept_timeout"));
+    int timeoutWord = Integer.parseInt(prop.getProperty("word_timeout")); // a new word is generated every 5 minutes
+    int guessLimit = Integer.parseInt(prop.getProperty("guessLimit"));
+    String dictionary = prop.getProperty("dictionary");
 
     String readLine = new String();
 
@@ -74,22 +86,22 @@ public class ServerMain {
       reader.close();
     }
 
-    generateWord(); // viene estratta la prima parola.
+    generateWord(dictionary); // viene estratta la prima parola.
     long whenWordIsGenerated = System.currentTimeMillis();
     System.out.println("Server is running...");
 
     while (true) {
       try {
         Socket socket = server.accept(); // connessione request/response
-        threadpool.execute(new Player(socket, tempDataList, userList));
+        threadpool.execute(new Player(socket, prop, tempDataList, userList));
         System.out.println("Client connected!");
       } catch (SocketTimeoutException so) {
       } finally {
         // ogni x secondi viene generata
         // una nuova parola e viene inoltrata.
         if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) {
-          generateWord();
-          resetTempData(tempDataList);
+          generateWord(dictionary);
+          resetTempData(tempDataList, guessLimit);
           System.out.println(word); ////////////////////////////////// per testing
           whenWordIsGenerated = System.currentTimeMillis();
         }

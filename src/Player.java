@@ -9,20 +9,23 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Properties;
 
 public class Player implements Runnable {
     private ArrayList<Account> userList; // lista dei dati permanenti condivisa tra i thread.
     private ArrayList<TemporaryPlayerData> tempDataList; // lista dei dati temporanei condivisa tra i thread.
     private String username; // viene salvato lo username con cui viene fatto il login.
-    private boolean isLogged; // per impedire ad un altro client di fare login con lo stesso username.
+    private boolean isLogged = false; // per impedire ad un altro client di fare login con lo stesso username.
+    private Properties prop;
     private BufferedReader in;
     private PrintWriter out;
 
-    public Player(Socket socket, ArrayList<TemporaryPlayerData> tempDataList, ArrayList<Account> userList)
+    public Player(Socket socket, Properties properties, ArrayList<TemporaryPlayerData> tempDataList,
+            ArrayList<Account> userList)
             throws IOException {
+        this.prop = properties;
         this.tempDataList = tempDataList;
         this.userList = userList;
-        this.isLogged = false;
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new PrintWriter(socket.getOutputStream(), true);
     }
@@ -71,7 +74,7 @@ public class Player implements Runnable {
     }
 
     // metodo per il login del giocatore.
-    private synchronized boolean login(String username, String password) throws IOException {
+    private synchronized boolean login(String username, String password, int guessLimit) throws IOException {
         if (validateUser(username, password)) {
             int index = getUserInTemp(username);
             if (index != -1) {
@@ -87,7 +90,7 @@ public class Player implements Runnable {
                 out.println("OK - login successful!");
                 return true;
             }
-            TemporaryPlayerData newPlayer = new TemporaryPlayerData(username);
+            TemporaryPlayerData newPlayer = new TemporaryPlayerData(username, guessLimit);
             this.tempDataList.add(newPlayer);
             this.username = username;
             this.isLogged = true;
@@ -227,6 +230,7 @@ public class Player implements Runnable {
     }
 
     public void run() {
+        int guessLimit = Integer.parseInt(this.prop.getProperty("guessLimit"));
         String message = new String();
         // un loop in cui il server aspetta un messaggio
         // con un format predefinito dal client e agisce di conseguenza.
@@ -241,7 +245,7 @@ public class Player implements Runnable {
                         printList();
                         break;
                     case "login":
-                        if (login(data[1], data[2])) {
+                        if (login(data[1], data[2], guessLimit)) {
                             out.println("true");
                             this.isLogged = true;
                         } else
@@ -263,10 +267,12 @@ public class Player implements Runnable {
 
         try {
             // setup delle impostazioni per il multicast.
-            int portMulticast = 3002, TTL = 255;
+            int portMulticast = Integer.parseInt(this.prop.getProperty("port_multicast"));
+            int TTL = Integer.parseInt(this.prop.getProperty("time_to_live"));
+            String addressMulticast = prop.getProperty("address_multicast");
 
             // il server si unisce al gruppo multicast.
-            InetAddress multiAddr = InetAddress.getByName("239.255.255.255");
+            InetAddress multiAddr = InetAddress.getByName(addressMulticast);
             MulticastSocket multiSocket = new MulticastSocket(portMulticast);
             multiSocket.setTimeToLive(TTL);
             multiSocket.joinGroup(multiAddr);
@@ -301,7 +307,7 @@ public class Player implements Runnable {
                     case "guess":
                         decrementGuesses();
                         String word = ServerMain.word, hint = new String();
-                        for (int i = 0; i < 10; i++) {
+                        for (int i = 0; i < word.length(); i++) {
                             if (word.charAt(i) == data[1].charAt(i)) {
                                 hint = hint + "+  ";
                             } else if (word.indexOf(data[1].charAt(i)) != -1) {

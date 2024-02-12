@@ -13,6 +13,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Properties;
 
 public class ClientMain {
     // metodo per richiedere username e password durante register e login.
@@ -36,8 +37,8 @@ public class ClientMain {
     }
 
     // metodo che verifica se la parola inserita è presente nel file delle parole.
-    private static boolean checkVocabulary(String word) throws IOException {
-        BufferedReader reader = new BufferedReader(new FileReader("files/words.txt"));
+    private static boolean checkVocabulary(String word, String dictionary) throws IOException {
+        BufferedReader reader = new BufferedReader(new FileReader(dictionary));
         String line = reader.readLine();
         while (line != null) {
             if (line.contentEquals(word)) {
@@ -51,8 +52,19 @@ public class ClientMain {
     }
 
     public static void main(String[] args) throws IOException, UnknownHostException {
+        // loading properties
+        FileReader config = new FileReader("files/config.config");
+        Properties prop = new Properties();
+        prop.load(config);
         // setup dei parametri del client.
-        int port = 3000, portMulticast = 3002, TTL = 255, timeoutReceive = 1000;
+        int port = Integer.parseInt(prop.getProperty("port"));
+        int portMulticast = Integer.parseInt(prop.getProperty("port_multicast"));
+        int TTL = Integer.parseInt(prop.getProperty("time_to_live"));
+        int timeoutReceive = Integer.parseInt(prop.getProperty("receive_timeout"));
+        int guessLimit = Integer.parseInt(prop.getProperty("guessLimit"));
+        String address = prop.getProperty("address");
+        String addressMulticast = prop.getProperty("address_multicast");
+        String dictionary = prop.getProperty("dictionary");
 
         int guesses = 0;
         boolean isLogged = false, isGuessed = false;
@@ -61,7 +73,7 @@ public class ClientMain {
         BufferedReader input = new BufferedReader(new InputStreamReader(System.in)); // stdin.
 
         // la connessione request/response.
-        Socket socket = new Socket("localhost", port);
+        Socket socket = new Socket(address, port);
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
@@ -100,7 +112,7 @@ public class ClientMain {
         }
         // il client si unisce al gruppo multicast perchè
         // ha fatto login con successo.
-        InetAddress multiAddr = InetAddress.getByName("239.255.255.255");
+        InetAddress multiAddr = InetAddress.getByName(addressMulticast);
         MulticastSocket multiSocket = new MulticastSocket(portMulticast);
         multiSocket.setSoTimeout(timeoutReceive);
         multiSocket.setTimeToLive(TTL);
@@ -157,11 +169,7 @@ public class ClientMain {
                         // un tentativo di indovinare la parola.
                         case "sendWord":
                             try {
-                                if (parts[1].length() != 10) {
-                                    System.out.println("ERROR - Word is not 10 characters.");
-                                    continue;
-                                }
-                                if (!checkVocabulary(parts[1])) {
+                                if (!checkVocabulary(parts[1], dictionary)) {
                                     System.out.println("ERROR - Word is not in vocabulary.");
                                     continue;
                                 }
@@ -169,7 +177,7 @@ public class ClientMain {
                                 // decrementa i guesses lato server e invia la parola.
                                 out.println("guess," + parts[1]);
                                 System.out.printf("\n");
-                                for (int i = 0; i < 10; i++)
+                                for (int i = 0; i < parts[1].length(); i++)
                                     System.out.printf("%s  ", parts[1].charAt(i));
                                 System.out.printf("\n");
                                 line = in.readLine();
@@ -178,13 +186,14 @@ public class ClientMain {
 
                                 if (line.contentEquals("true")) {
                                     isGuessed = true;
-                                    out.println("won," + Integer.toString(12 - guesses));
+                                    out.println("won," + Integer.toString(guessLimit - guesses));
                                     System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
                                     response = input.readLine();
                                     if (response.contentEquals("y"))
                                         out.println(
                                                 "share," + username + "," + parts[1] + ","
-                                                        + Integer.toString(12 - guesses)); // richiesta di share.
+                                                        + Integer.toString(guessLimit - guesses)); // richiesta di
+                                                                                                   // share.
                                     else
                                         System.out.println("Alright then...keep your secrets...");
                                 }

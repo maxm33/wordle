@@ -8,255 +8,107 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Properties;
 
 public class Player implements Runnable {
-    private ArrayList<Account> userList; // lista dei dati permanenti condivisa tra i thread.
-    private ArrayList<TemporaryPlayerData> tempDataList; // lista dei dati temporanei condivisa tra i thread.
-    private String username; // viene salvato lo username con cui viene fatto il login.
-    private boolean isLogged = false; // per impedire ad un altro client di fare login con lo stesso username.
-    private Properties prop;
-    private BufferedReader in;
-    private PrintWriter out;
+    private BufferedReader fromClient;
+    private PrintWriter toClient;
 
-    public Player(Socket socket, Properties properties, ArrayList<TemporaryPlayerData> tempDataList,
-            ArrayList<Account> userList)
+    private AccountList accountList; // account list shared between threads
+    private TemporaryList tempList; // temporary data list shared between threads
+    private String username; // the logged user's username
+    private boolean isLogged = false;
+    private Properties prop;
+
+    public Player(Socket socket, Properties properties, TemporaryList tempList,
+            AccountList accountList)
             throws IOException {
         this.prop = properties;
-        this.tempDataList = tempDataList;
-        this.userList = userList;
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new PrintWriter(socket.getOutputStream(), true);
+        this.tempList = tempList;
+        this.accountList = accountList;
+        fromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        toClient = new PrintWriter(socket.getOutputStream(), true);
     }
 
-    private boolean validateUser(String username, String password) {
-        for (int i = 0; i < this.userList.size(); i++) {
-            Account item = this.userList.get(i);
-            if (item.username.contentEquals(username) && item.password.contentEquals(password))
-                return true;
-        }
-        return false;
-    }
-
-    // metodo che restituisce l'indice dello user cercato nella lista dei dati
-    // permanenti, o -1 se non c'è.
-    private int getUserInPerm(String username) {
-        for (int i = 0; i < this.userList.size(); i++) {
-            if (this.userList.get(i).username.contentEquals(username))
-                return i;
-        }
-        return -1;
-    }
-
-    // metodo che restituisce l'indice dello user cercato nella lista dei dati
-    // temporanei, o -1 se non c'è.
-    private int getUserInTemp(String username) {
-        for (int i = 0; i < this.tempDataList.size(); i++) {
-            if (this.tempDataList.get(i).username.contentEquals(username))
-                return i;
-        }
-        return -1;
-    }
-
-    // metodo che aggiunge un utente, se nuovo, nella lista dati permanenti.
-    private synchronized boolean register(String username, String password) throws IOException {
-        int index = getUserInPerm(username);
-        if (index != -1) {
-            out.println("ERROR - this username is registered already. Please log in.");
+    private synchronized boolean register(String username, String password) {
+        if (accountList.getAccount(username) != null) {
+            toClient.println("ERROR - this username is registered already. Please login.");
             return false;
         } else {
-            Account newAccount = new Account(username, password);
-            this.userList.add(newAccount);
-            out.println("OK - user successfully registered! Please log in.");
+            accountList.add(new Account(username, password));
+            toClient.println("OK - user successfully registered! Please login.");
             return true;
         }
     }
 
-    // metodo per il login del giocatore.
     private synchronized boolean login(String username, String password, int guessLimit) throws IOException {
-        if (validateUser(username, password)) {
-            int index = getUserInTemp(username);
+        if (accountList.isRegistered(username, password)) {
+            int index = tempList.search(username);
             if (index != -1) {
-                TemporaryPlayerData item = this.tempDataList.get(index);
-                if (item.isLogged) {
-                    out.println("ERROR - user is already logged.");
+                TemporaryData x = tempList.get(index);
+                if (x.isLogged) {
+                    toClient.println("ERROR - user is already logged. Retry.");
                     return false;
                 }
-                item.isLogged = true;
-                this.tempDataList.set(index, item);
+                x.isLogged = true;
+                tempList.set(index, x);
                 this.username = username;
                 this.isLogged = true;
-                out.println("OK - login successful!");
+                toClient.println("OK - login successful!");
                 return true;
             }
-            TemporaryPlayerData newPlayer = new TemporaryPlayerData(username, guessLimit);
-            this.tempDataList.add(newPlayer);
+            tempList.add(new TemporaryData(username, guessLimit));
             this.username = username;
             this.isLogged = true;
-            out.println("OK - login successful!");
+            toClient.println("OK - login successful!");
             return true;
         } else {
-            out.println("ERROR - invalid username/password. Please try again.");
+            toClient.println("ERROR - invalid username/password. Retry.");
             return false;
         }
     }
 
-    // metodo per il logout del giocatore.
     private synchronized boolean logout() throws IOException {
-        int index = getUserInTemp(this.username);
+        int index = tempList.search(this.username);
         if (index != -1) {
-            TemporaryPlayerData item = this.tempDataList.get(index);
-            item.isLogged = false;
-            this.tempDataList.set(index, item);
+            TemporaryData x = tempList.get(index);
+            x.isLogged = false;
+            tempList.set(index, x);
             this.isLogged = false;
-            out.println("OK - logout successful. Bye!");
+            toClient.println("OK - logout successful. Bye!");
             return true;
         } else {
-            out.println("ERROR - user is not logged in.");
+            toClient.println("ERROR - user is not logged in.");
             return false;
         }
     }
 
-    // metodo per decrementare i guess rimanenti del giocatore ad ogni suo
-    // tentativo.
-    private synchronized void decrementGuesses() {
-        int index = getUserInTemp(this.username);
-        if (index != -1) {
-            TemporaryPlayerData item = this.tempDataList.get(index);
-            item.guesses--;
-            this.tempDataList.set(index, item);
-        }
-    }
-
-    // metodo che invia al client info sulla partita corrente per il giocatore
-    // richiesto.
-    private void getGuessesAndGuessed() throws IOException {
-        int index = getUserInTemp(this.username);
-        if (index != -1) {
-            TemporaryPlayerData item = this.tempDataList.get(index);
-            out.println(Integer.toString(item.guesses) + "," + Boolean.toString(item.isGuessed));
-        }
-    }
-
-    // metodo che aggiorna le statistiche (nella lista dei dati permanenti)
-    // quando il giocatore vince. Aggiorna dei dati anche nella lista temporanea.
-    private synchronized void updateStatsOnWin(int tries) {
-        int index = getUserInPerm(this.username);
-        if (index != -1) {
-            Account item = this.userList.get(index);
-            item.currentWinStreak++;
-            item.numberOfMatches++;
-            if (item.currentWinStreak >= item.maxWinStreak) {
-                item.maxWinStreak = item.currentWinStreak;
-            }
-            item.averageTries = ((item.averageTries * item.numberOfWins) + tries) /
-                    (item.numberOfWins + 1);
-            item.numberOfWins++;
-            this.userList.set(index, item);
-        }
-        index = getUserInTemp(this.username);
-        if (index != -1) {
-            TemporaryPlayerData item = this.tempDataList.get(index);
-            item.isGuessed = true;
-            this.tempDataList.set(index, item);
-        }
-    }
-
-    // metodo che aggiorna le statistiche (nella lista dei dati permanenti)
-    // quando il giocatore perde o skippa la parola. Aggiorna dei dati anche nella
-    // lista temporanea.
-    private synchronized void updateStatsOnLoss() {
-        int index = getUserInPerm(this.username);
-        if (index != -1) {
-            Account item = this.userList.get(index);
-            item.numberOfMatches++;
-            item.currentWinStreak = 0;
-            this.userList.set(index, item);
-        }
-        index = getUserInTemp(this.username);
-        if (index != -1) {
-            TemporaryPlayerData item = this.tempDataList.get(index);
-            item.guesses = 0;
-            this.tempDataList.set(index, item);
-        }
-    }
-
-    // metodo che passa al client le statistiche del giocatore.
-    private void getAccountStats() throws IOException {
-        int index = getUserInPerm(this.username);
-        if (index != -1) {
-            Account item = this.userList.get(index);
-            out.println(
-                    item.username +
-                            "," +
-                            item.numberOfMatches +
-                            "," +
-                            item.numberOfWins +
-                            "," +
-                            item.currentWinStreak +
-                            "," +
-                            item.maxWinStreak +
-                            "," +
-                            item.averageTries);
-        }
-    }
-
-    // printa le liste dei dati permanenti e temporanei, per testing.
-    private void printList() throws IOException {
-        System.out.println("*****************************************");
-        for (int i = 0; i < this.userList.size(); i++) {
-            Account item = this.userList.get(i);
-            System.out.printf(
-                    "username: %s - matches: %s - wins: %s - curWS: %s - maxWS: %s - avgtries: %s\n",
-                    item.username,
-                    item.numberOfMatches,
-                    item.numberOfWins,
-                    item.currentWinStreak,
-                    item.maxWinStreak,
-                    item.averageTries);
-        }
-        System.out.println("-----------------------------------------");
-        for (int i = 0; i < this.tempDataList.size(); i++) {
-            TemporaryPlayerData item = this.tempDataList.get(i);
-            System.out.printf(
-                    "username: %s - isLogged: %s - guesses: %s - word: %s - isGuessed: %s\n",
-                    item.username,
-                    item.isLogged,
-                    item.guesses,
-                    item.word,
-                    item.isGuessed);
-        }
-    }
-
+    @SuppressWarnings("resource")
     public void run() {
+        String message;
         int guessLimit = Integer.parseInt(this.prop.getProperty("guessLimit"));
-        String message = new String();
-        // un loop in cui il server aspetta un messaggio
-        // con un format predefinito dal client e agisce di conseguenza.
-        // Termina quando il client farà login con successo.
+        // managing requests in authentication process
         try {
             while (!this.isLogged) {
-                message = in.readLine();
+                message = fromClient.readLine();
                 String[] data = message.split(",");
                 switch (data[0]) {
                     case "register":
                         register(data[1], data[2]);
-                        printList();
                         break;
                     case "login":
                         if (login(data[1], data[2], guessLimit)) {
-                            out.println("true");
+                            toClient.println("true");
                             this.isLogged = true;
+                            tempList.print(); ////////////////////////////////// testing
                         } else
-                            out.println("false");
-                        printList();
+                            toClient.println("false");
                         break;
                     case "exit":
                         System.out.println("Client disconnected.");
                         return;
                     default:
-                        out.println("Invalid command.");
+                        toClient.println("Invalid command.");
                         break;
                 }
             }
@@ -266,79 +118,77 @@ public class Player implements Runnable {
         }
 
         try {
-            // setup delle impostazioni per il multicast.
-            int portMulticast = Integer.parseInt(this.prop.getProperty("port_multicast"));
-            int TTL = Integer.parseInt(this.prop.getProperty("time_to_live"));
+            // setup multicast settings
+            int portMulticast = Integer.parseInt(prop.getProperty("port_multicast"));
+            int TTL = Integer.parseInt(prop.getProperty("time_to_live"));
             String addressMulticast = prop.getProperty("address_multicast");
 
-            // il server si unisce al gruppo multicast.
+            // entering multicast group
             InetAddress multiAddr = InetAddress.getByName(addressMulticast);
             MulticastSocket multiSocket = new MulticastSocket(portMulticast);
             multiSocket.setTimeToLive(TTL);
             multiSocket.joinGroup(multiAddr);
 
-            // il loop che gestisce tutte le richieste fatte dal client durante il gioco,
-            // anche qui il server sta in ascolto e riceve un messaggio con un certo format
-            // e agisce in base alla richiesta. Alcune richieste sono fatte esplicitamente
-            // dal giocatore, mentre altre sono fatte implicitamente dal client per ricevere
-            // certi dati.
+            // mananging requests in game process
             while (this.isLogged) {
-                message = in.readLine();
+                message = fromClient.readLine();
                 String[] data = message.split(",");
                 switch (data[0]) {
-                    case "logout":
-                        if (logout())
-                            out.println("true");
+                    case "guess":
+                        tempList.decrementGuesses(this.username);
+                        String word = ServerMain.word, hint = new String();
+                        for (int i = 0; i < word.length(); i++) {
+                            if (word.charAt(i) == data[1].charAt(i))
+                                hint = hint + "+  ";
+                            else if (word.indexOf(data[1].charAt(i)) != -1)
+                                hint = hint + "?  ";
+                            else
+                                hint = hint + "X  ";
+                        }
+                        toClient.println(hint);
+                        if (word.contentEquals(data[1]))
+                            toClient.println("true");
                         else
-                            out.println("false");
-                        printList();
+                            toClient.println("false");
                         break;
-                    case "sendStats":
-                        getAccountStats();
+                    case "won":
+                        accountList.hasWon(this.username, Integer.parseInt(data[1]));
+                        tempList.hasWon(this.username);
+                        tempList.print(); ////////////////////////////////// testing
+                        accountList.print(); ////////////////////////////////// testing
+                        break;
+                    case "lost":
+                        accountList.hasLost(this.username, guessLimit);
+                        tempList.hasLost(this.username);
+                        tempList.print(); ////////////////////////////////// testing
+                        accountList.print(); ////////////////////////////////// testing
+                        break;
+                    case "info":
+                        toClient.println(tempList.getGuesses(this.username) + "," + tempList.hasGuessed(this.username));
+                        break;
+                    case "stats":
+                        Account x = accountList.getAccount(this.username);
+                        toClient.println(x.username + "," + x.numberOfMatches + "," + x.numberOfWins + ","
+                                + x.currentWinStreak + "," + x.maxWinStreak + "," + x.averageTries);
                         break;
                     case "share":
                         String notification = data[1] + " has guessed the word '" + data[2] + "' with " + data[3]
                                 + " attempts.";
                         DatagramPacket dp = new DatagramPacket(notification.getBytes(), notification.length(),
-                                multiAddr,
-                                portMulticast);
+                                multiAddr, portMulticast);
                         multiSocket.send(dp);
                         break;
-                    case "guess":
-                        decrementGuesses();
-                        String word = ServerMain.word, hint = new String();
-                        for (int i = 0; i < word.length(); i++) {
-                            if (word.charAt(i) == data[1].charAt(i)) {
-                                hint = hint + "+  ";
-                            } else if (word.indexOf(data[1].charAt(i)) != -1) {
-                                hint = hint + "?  ";
-                            } else {
-                                hint = hint + "X  ";
-                            }
-                        }
-                        out.println(hint);
-                        if (word.contentEquals(data[1]))
-                            out.println("true");
-                        else
-                            out.println("false");
-                        printList();
-                        break;
-                    case "info":
-                        getGuessesAndGuessed();
-                        break;
-                    case "won":
-                        updateStatsOnWin(Integer.parseInt(data[1]));
-                        printList();
-                        break;
-                    case "lost":
-                        updateStatsOnLoss();
-                        printList();
+                    case "logout":
+                        if (logout()) {
+                            toClient.println("true");
+                            tempList.print(); ////////////////////////////////// testing
+                        } else
+                            toClient.println("false");
                         break;
                 }
             }
         } catch (IOException e) {
-            // se un client è crashato per qualche motivo, il server fa
-            // logout al posto suo.
+            // if client crashes, calls logout() for him
             System.out.println("Client forced to disconnect.");
             try {
                 logout();

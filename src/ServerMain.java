@@ -12,21 +12,19 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
 public class ServerMain {
+  private static BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
   public static String word;
 
-  // metodo che genera un numero casuale che corrisponde al numero
-  // di una riga del file delle parole e quindi è la parola che sarà estratta.
+  // method to generate a new random word
   private static void generateWord(String dictionary) throws IOException {
     Stream<String> counting_lines = Files.lines(Paths.get(dictionary));
     int numlines = (int) counting_lines.count();
@@ -35,91 +33,85 @@ public class ServerMain {
     Stream<String> selecting_lines = Files.lines(Paths.get(dictionary));
     word = selecting_lines.skip(selectedLine).findFirst().get();
     selecting_lines.close();
+    System.out.println(word); ////////////////////////////////// testing
   }
 
-  // metodo che resetta i dati temporanei di tutti i giocatori.
-  private static void resetTempData(ArrayList<TemporaryPlayerData> tempDataList, int guessLimit) {
-    for (int i = 0; i < tempDataList.size(); i++) {
-      TemporaryPlayerData item = tempDataList.get(i);
-      item.guesses = guessLimit;
-      item.word = ServerMain.word;
-      item.isGuessed = false;
-      tempDataList.set(i, item);
-    }
-  }
-
+  @SuppressWarnings("resource")
   public static void main(String[] args) throws Exception {
     // loading properties
     FileReader config = new FileReader("files/config.config");
     Properties prop = new Properties();
     prop.load(config);
-    // setup dei parametri del server.
+    // setup server params
     int port = Integer.parseInt(prop.getProperty("port"));
     int timeoutAccept = Integer.parseInt(prop.getProperty("accept_timeout"));
     int timeoutWord = Integer.parseInt(prop.getProperty("word_timeout")); // a new word is generated every 5 minutes
     int guessLimit = Integer.parseInt(prop.getProperty("guessLimit"));
     String dictionary = prop.getProperty("dictionary");
 
-    String readLine = new String();
-
-    BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-
-    ServerSocket server = new ServerSocket(port); // connessione request/response.
-    server.setSoTimeout(timeoutAccept); // timeout della accept() request/response.
+    ServerSocket server = new ServerSocket(port); // request/response connection
+    server.setSoTimeout(timeoutAccept); // timeout accept()
 
     ExecutorService threadpool = Executors.newCachedThreadPool();
-    ArrayList<TemporaryPlayerData> tempDataList = new ArrayList<TemporaryPlayerData>();
 
+    TemporaryList tempList = new TemporaryList();
+    AccountList accountList = new AccountList();
+    // restore all accounts data, if any
     File file = new File("files/users.json");
-    ArrayList<Account> userList = new ArrayList<Account>();
-
-    // se ci sono già dei progressi permanenti, li ripristina.
-    // Altrimenti la lista rimane vuota.
     if (!file.createNewFile()) {
       JsonReader reader = new JsonReader(new FileReader(file));
       reader.beginArray();
       while (reader.hasNext()) {
         Account account = new Gson().fromJson(reader, Account.class);
-        userList.add(account);
+        accountList.add(account);
       }
       reader.endArray();
       reader.close();
     }
 
-    generateWord(dictionary); // viene estratta la prima parola.
+    generateWord(dictionary); // first word is generated
     long whenWordIsGenerated = System.currentTimeMillis();
-    System.out.println("Server is running...");
 
+    // starting the user input reader
+    Thread inputReader = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        String message = new String();
+        try {
+          while ((message = stdin.readLine()) != null) {
+            switch (message) {
+              case "savestate":
+                System.out.println("Saving server state...");
+                String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
+                    .toJson(accountList);
+                BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
+                printerJSON.write(json);
+                printerJSON.close();
+                System.out.println("Done.");
+                break;
+              default:
+                System.out.println("ERROR - Invalid action.");
+                break;
+            }
+          }
+        } catch (IOException e) {
+        }
+      }
+    });
+    inputReader.start();
+
+    System.out.println("Server is running...");
     while (true) {
       try {
-        Socket socket = server.accept(); // connessione request/response
-        threadpool.execute(new Player(socket, prop, tempDataList, userList));
+        Socket socket = server.accept(); // waiting new players to connect
+        threadpool.execute(new Player(socket, prop, tempList, accountList));
         System.out.println("Client connected!");
       } catch (SocketTimeoutException so) {
       } finally {
-        // ogni x secondi viene generata
-        // una nuova parola e viene inoltrata.
-        if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) {
+        if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) { // every 5 mins
           generateWord(dictionary);
-          resetTempData(tempDataList, guessLimit);
-          System.out.println(word); ////////////////////////////////// per testing
+          tempList.reset(guessLimit);
           whenWordIsGenerated = System.currentTimeMillis();
-        }
-        // controllo del stdin e salvataggio dati se richiesto.
-        while (input.ready()) {
-          readLine = input.readLine();
-        }
-        if (!readLine.isBlank()) {
-          if (readLine.contentEquals("savestate")) {
-            System.out.println("Saving the server state...");
-            String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(userList);
-            BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
-            printerJSON.write(json);
-            printerJSON.close();
-            System.out.println("Done.");
-          } else
-            System.out.println("ERROR - Invalid action. Please try again.");
-          readLine = "";
         }
       }
     }

@@ -16,47 +16,42 @@ import java.util.ArrayList;
 import java.util.Properties;
 
 public class ClientMain {
-    // metodo per richiedere username e password durante register e login.
-    private static String[] askCredentials(BufferedReader input) throws IOException {
-        String[] credentials = new String[2];
-        while (true) {
-            System.out.println("Enter your username:");
-            credentials[0] = input.readLine();
-            if (credentials[0] == null || credentials[0].isBlank())
-                continue;
-            break;
+    private static BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+    private static BufferedReader fromServer;
+    private static PrintWriter toServer;
+
+    // method to request username/password during register/login
+    private static String askCredential(String str) throws IOException {
+        String credential = new String();
+        while (credential == null || credential.isBlank()) {
+            System.out.println("Enter your " + str + ":");
+            credential = userInput.readLine();
         }
-        while (true) {
-            System.out.println("Enter your password:");
-            credentials[1] = input.readLine();
-            if (credentials[1] == null || credentials[1].isBlank())
-                continue;
-            break;
-        }
-        return credentials;
+        return credential;
     }
 
-    // metodo che verifica se la parola inserita è presente nel file delle parole.
-    private static boolean checkVocabulary(String word, String dictionary) throws IOException {
+    // method to check if word is in word file
+    private static boolean checkWord(String word, String dictionary) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(dictionary));
         String line = reader.readLine();
         while (line != null) {
             if (line.contentEquals(word)) {
                 reader.close();
                 return true;
-            }
-            line = reader.readLine();
+            } else
+                line = reader.readLine();
         }
         reader.close();
         return false;
     }
 
+    @SuppressWarnings("resource")
     public static void main(String[] args) throws IOException, UnknownHostException {
         // loading properties
         FileReader config = new FileReader("files/config.config");
         Properties prop = new Properties();
         prop.load(config);
-        // setup dei parametri del client.
+        // setup client params
         int port = Integer.parseInt(prop.getProperty("port"));
         int portMulticast = Integer.parseInt(prop.getProperty("port_multicast"));
         int TTL = Integer.parseInt(prop.getProperty("time_to_live"));
@@ -66,202 +61,169 @@ public class ClientMain {
         String addressMulticast = prop.getProperty("address_multicast");
         String dictionary = prop.getProperty("dictionary");
 
-        int guesses = 0;
-        boolean isLogged = false, isGuessed = false;
-        String[] credentials = new String[2];
-        String username = new String(), line = new String(), response = new String();
-        BufferedReader input = new BufferedReader(new InputStreamReader(System.in)); // stdin.
+        boolean isLogged = false;
+        String username = new String(), response, password;
 
-        // la connessione request/response.
-        Socket socket = new Socket(address, port);
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        Socket socket = new Socket(address, port); // request/response connection
+        fromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        toServer = new PrintWriter(socket.getOutputStream(), true);
 
-        // un loop in cui il client aspetta un messaggio
-        // da parte dell'utente sullo standard input. Alla ricezione,
-        // manda la relativa richiesta al server, che agisce di conseguenza.
-        // Termina quando il client farà login con successo.
+        // authentication menu
         System.out.println("\nType the action you want to do:\n- register\n- login\n- exit\n");
         while (!isLogged) {
-            response = input.readLine();
+            response = userInput.readLine();
             switch (response) {
                 case "register":
-                    credentials = askCredentials(input);
-                    out.println("register," + credentials[0] + "," + credentials[1]);
-                    response = in.readLine();
+                    username = askCredential("username");
+                    password = askCredential("password");
+                    toServer.println("register," + username + "," + password);
+                    response = fromServer.readLine();
                     System.out.println(response);
                     break;
                 case "login":
-                    credentials = askCredentials(input);
-                    out.println("login," + credentials[0] + "," + credentials[1]);
-                    response = in.readLine();
+                    username = askCredential("username");
+                    password = askCredential("password");
+                    toServer.println("login," + username + "," + password);
+                    response = fromServer.readLine();
                     System.out.println(response);
-                    response = in.readLine();
-                    if (response.contentEquals("true")) {
+                    response = fromServer.readLine();
+                    if (response.contentEquals("true"))
                         isLogged = true;
-                        username = credentials[0];
-                    }
                     break;
                 case "exit":
-                    out.println("exit, , ");
+                    toServer.println("exit, , ");
                     return;
                 default:
-                    System.out.println("ERROR - Invalid action. Please try again.");
+                    System.out.println("ERROR - Invalid action.");
                     break;
             }
         }
-        // il client si unisce al gruppo multicast perchè
-        // ha fatto login con successo.
+        // entering multicast group
         InetAddress multiAddr = InetAddress.getByName(addressMulticast);
         MulticastSocket multiSocket = new MulticastSocket(portMulticast);
         multiSocket.setSoTimeout(timeoutReceive);
         multiSocket.setTimeToLive(TTL);
         multiSocket.joinGroup(multiAddr);
-        // struttura dati per lo storage delle notifiche ricevute.
+
         ArrayList<String> notificationList = new ArrayList<String>();
 
-        // il loop dove il client effettua tutte le richieste durante il gioco,
-        // il client invia messaggi con un certo format al server. Alcune richieste
-        // sono fatte esplicitamente dal giocatore, mentre altre sono fatte dal client
-        // per ricevere certi dati.
+        int guesses;
+        String line;
+        boolean isGuessed = false;
+
         while (isLogged) {
-            // ripristina le info del giocatore sulla partita corrente, qualora ci fossero.
-            out.println("info," + username);
-            line = in.readLine();
+            // restoring previous game, if any
+            toServer.println("info," + username);
+            line = fromServer.readLine();
             String[] info = line.split(",");
             guesses = Integer.parseInt(info[0]);
             isGuessed = Boolean.parseBoolean(info[1]);
 
             if (guesses == 0 || isGuessed == true) {
                 System.out.println("You can't try anymore for now, press 'enter' to refresh...");
-                line = input.readLine();
+                userInput.readLine();
                 continue;
             }
 
+            // game menu
             System.out.printf(
-                    "\n************************\nHi %s!\nThis is what you can do:\n1) sendWord <word> (to try guessing the word)\n2) skip (counts as a loss and you'll have to wait for a new word)\n3) sendStats (to get your account stats)\n4) showSharings (to show notifications about other players' results)\n5) logout (to exit the session)\n\nGuesses remaining: %s\n************************\n\n",
+                    "\n************************\nHi %s!\nThis is what you can do:\n1) guess <word>\n2) skip (counts as a loss)\n3) stats\n4) sharings (to show notifications)\n5) logout\n\nGuesses remaining: %s\n************************\n\n",
                     username, guesses);
 
-            // loop del gioco, viene eseguito finchè il giocatore non ha indovinato,
-            // ha ancora tentativi o non fa il logout.
             while (guesses > 0 && isLogged && !isGuessed) {
-                out.println("info," + username);
-                line = in.readLine();
-                info = line.split(",");
-                guesses = Integer.parseInt(info[0]);
-                isGuessed = Boolean.parseBoolean(info[1]);
-                // per x secondi riceve tutte le notifiche disponibili,
-                // le conserva e rimane in ascolto.
-                try {
-                    byte[] buf = new byte[256];
-                    DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                    multiSocket.receive(packet);
-                    String message = new String(packet.getData(), StandardCharsets.UTF_8);
-                    notificationList.add(message);
-                } catch (SocketTimeoutException so) {
-                }
-                // controllo del stdin.
-                while (input.ready()) {
-                    line = input.readLine();
+                while (userInput.ready()) {
+                    try {
+                        byte[] buf = new byte[256];
+                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                        multiSocket.receive(packet);
+                        String message = new String(packet.getData(), StandardCharsets.UTF_8);
+                        notificationList.add(message);
+                    } catch (SocketTimeoutException so) {
+                    }
+                    line = userInput.readLine();
                     String[] parts = line.split(" ");
                     switch (parts[0]) {
-                        // i controlli eseguiti quando viene fatto
-                        // un tentativo di indovinare la parola.
-                        case "sendWord":
+                        case "guess":
                             try {
-                                if (!checkVocabulary(parts[1], dictionary)) {
+                                if (!checkWord(parts[1], dictionary)) {
                                     System.out.println("ERROR - Word is not in vocabulary.");
                                     continue;
                                 }
                                 guesses--;
-                                // decrementa i guesses lato server e invia la parola.
-                                out.println("guess," + parts[1]);
+                                toServer.println("guess," + parts[1]);
                                 System.out.printf("\n");
                                 for (int i = 0; i < parts[1].length(); i++)
                                     System.out.printf("%s  ", parts[1].charAt(i));
                                 System.out.printf("\n");
-                                line = in.readLine();
+                                line = fromServer.readLine();
                                 System.out.printf("%s\n\n", line);
-                                line = in.readLine();
+                                line = fromServer.readLine();
 
                                 if (line.contentEquals("true")) {
                                     isGuessed = true;
-                                    out.println("won," + Integer.toString(guessLimit - guesses));
+                                    toServer.println("won," + Integer.toString(guessLimit - guesses));
                                     System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
-                                    response = input.readLine();
-                                    if (response.contentEquals("y"))
-                                        out.println(
+                                    response = userInput.readLine();
+                                    if (response.contentEquals("y")) {
+                                        toServer.println(
                                                 "share," + username + "," + parts[1] + ","
-                                                        + Integer.toString(guessLimit - guesses)); // richiesta di
-                                                                                                   // share.
-                                    else
+                                                        + Integer.toString(guessLimit - guesses));
+                                        System.out.println("Notification sent.");
+                                    } else
                                         System.out.println("Alright then...keep your secrets...");
-                                }
-                                // se i tentativi rimanenti sono 0 e la parola
-                                // non è stata indovinata, è una sconfitta e viene
-                                // eseguita la stessa procedura dello skip nel lato server.
-                                else if (guesses > 0)
+                                } else if (guesses > 0)
                                     System.out.printf("Guesses remaining: %s\n\n", guesses);
                                 else if (guesses == 0 && !isGuessed)
-                                    out.println("lost");
+                                    toServer.println("lost");
                             } catch (ArrayIndexOutOfBoundsException exception) {
-                                System.out.println("ERROR - Invalid format. Please try again.");
+                                System.out.println("ERROR - Invalid format.");
                                 continue;
                             }
                             break;
-                        // richiesta di logout, invia al server e
-                        // viene eseguita la relativa funzione di logout.
-                        case "logout":
-                            out.println("logout");
-                            response = in.readLine();
-                            System.out.println(response);
-                            response = in.readLine();
-                            if (response.contentEquals("true"))
-                                isLogged = false;
-                            break;
-                        // richiesta delle statistiche relative al giocatore,
-                        // invia al server viene eseguita la relativa funzione.
-                        case "sendStats":
-                            out.println("sendStats");
-                            response = in.readLine();
+                        case "skip":
+                            System.out.println("Word skipped.");
+                            toServer.println("lost");
+                            isGuessed = true;
+                            continue;
+                        case "stats":
+                            toServer.println("stats");
+                            response = fromServer.readLine();
                             String[] stats = response.split(",");
                             float percentage = 0;
                             if (Float.parseFloat(stats[1]) != 0)
                                 percentage = (Float.parseFloat(stats[2]) / Float.parseFloat(stats[1])) * 100;
+                            percentage *= 100;
+                            percentage = Math.round(percentage);
+                            percentage /= 100;
                             System.out.printf(
-                                    "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %.1f\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %.1f\n\n",
+                                    "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %s\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %s\n\n",
                                     stats[0], stats[1], stats[2], percentage, stats[3], stats[4],
-                                    Float.parseFloat(stats[5]));
+                                    stats[5]);
                             break;
-                        // printa tutte le notifiche presenti nella lista
-                        // e le rimuove perchè sono già state visualizzate.
-                        case "showSharings":
-                            System.out.println("Retrieving notifications, please wait...\n");
+                        case "sharings":
+                            System.out.println("Retrieving notifications...");
                             for (int i = 0; i < notificationList.size(); i++) {
                                 System.out.println(notificationList.get(i));
                                 notificationList.remove(i);
                             }
                             System.out.println("Done.\n");
                             break;
-                        // se un giocatore non vuole più provare ad indovinare la parola,
-                        // può skipparla. Se ce ne sono altre nel buffer, verranno scartate
-                        // tranne l'ultima, quindi il gioco viene aggiornato alla parola
-                        // corrente. Se il giocatore skippa la parola corrente, deve aspettare
-                        // la generazione della prossima parola. Uno skip azzera i tentativi
-                        // rimanenti sulla parola, quindi conta come una sconfitta.
-                        case "skip":
-                            System.out.println("Word skipped.");
-                            out.println("lost");
-                            isGuessed = true;
-                            continue;
+                        case "logout":
+                            toServer.println("logout");
+                            response = fromServer.readLine();
+                            System.out.println(response);
+                            response = fromServer.readLine();
+                            if (response.contentEquals("true"))
+                                isLogged = false;
+                            break;
                         default:
-                            System.out.println("ERROR - Invalid action. Please try again.");
+                            System.out.println("ERROR - Invalid action.");
                             continue;
                     }
                 }
             }
         }
-        input.close();
+        userInput.close();
         socket.close();
         multiSocket.close();
     }

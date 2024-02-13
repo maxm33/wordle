@@ -1,10 +1,8 @@
 package src;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -12,12 +10,13 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
 public class ServerMain {
@@ -36,7 +35,6 @@ public class ServerMain {
     System.out.println(word); ////////////////////////////////// testing
   }
 
-  @SuppressWarnings("resource")
   public static void main(String[] args) throws Exception {
     // loading properties
     FileReader config = new FileReader("files/config.config");
@@ -73,37 +71,18 @@ public class ServerMain {
     long whenWordIsGenerated = System.currentTimeMillis();
 
     // starting the user input reader
-    Thread inputReader = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        String message = new String();
-        try {
-          while ((message = stdin.readLine()) != null) {
-            switch (message) {
-              case "savestate":
-                System.out.println("Saving server state...");
-                String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
-                    .toJson(accountList);
-                BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
-                printerJSON.write(json);
-                printerJSON.close();
-                System.out.println("Done.");
-                break;
-              default:
-                System.out.println("ERROR - Invalid action.");
-                break;
-            }
-          }
-        } catch (IOException e) {
-        }
-      }
-    });
+    BooleanFlag guard = new BooleanFlag();
+    InputReader inputReader = new InputReader(stdin, accountList, guard);
     inputReader.start();
 
+    // to manage the connection with threads in pool
+    ArrayList<Socket> socketList = new ArrayList<Socket>();
+
     System.out.println("Server is running...");
-    while (true) {
+    while (guard.flag) {
       try {
         Socket socket = server.accept(); // waiting new players to connect
+        socketList.add(socket);
         threadpool.execute(new Player(socket, prop, tempList, accountList));
         System.out.println("Client connected!");
       } catch (SocketTimeoutException so) {
@@ -115,5 +94,21 @@ public class ServerMain {
         }
       }
     }
+    stdin.close();
+    server.close();
+    for (Socket x : socketList)
+      x.close();
+    threadpool.shutdown();
+    try {
+      if (!threadpool.awaitTermination(10, TimeUnit.SECONDS)) {
+        threadpool.shutdownNow();
+        if (!threadpool.awaitTermination(10, TimeUnit.SECONDS))
+          System.err.println("Pool did not terminate.");
+      }
+    } catch (InterruptedException ex) {
+      threadpool.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
+    System.out.println("Server is offline.");
   }
 }

@@ -113,7 +113,7 @@ public class Player implements Runnable {
                 }
             }
         } catch (IOException e) {
-            System.out.println("Client forced to disconnect.");
+            System.err.println("Client forced to disconnect.");
             return;
         }
 
@@ -189,7 +189,7 @@ public class Player implements Runnable {
             }
         } catch (IOException e) {
             // if client crashes, calls logout() for him
-            System.out.println("Client forced to disconnect.");
+            System.err.println("Client forced to disconnect.");
             try {
                 logout();
             } catch (IOException ioe) {

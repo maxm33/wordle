@@ -5,13 +5,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Properties;
 
@@ -94,7 +91,7 @@ public class ClientMain {
                     toServer.println("exit, , ");
                     return;
                 default:
-                    System.out.println("ERROR - Invalid action.");
+                    System.err.println("ERROR - Invalid action.");
                     break;
             }
         }
@@ -106,6 +103,10 @@ public class ClientMain {
         multiSocket.joinGroup(multiAddr);
 
         ArrayList<String> notificationList = new ArrayList<String>();
+
+        // starting the notification receiver
+        Receiver receiver = new Receiver(notificationList, multiSocket);
+        receiver.start();
 
         int guesses;
         String line;
@@ -132,14 +133,6 @@ public class ClientMain {
 
             while (guesses > 0 && isLogged && !isGuessed) {
                 while (userInput.ready()) {
-                    try {
-                        byte[] buf = new byte[256];
-                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                        multiSocket.receive(packet);
-                        String message = new String(packet.getData(), StandardCharsets.UTF_8);
-                        notificationList.add(message);
-                    } catch (SocketTimeoutException so) {
-                    }
                     line = userInput.readLine();
                     String[] parts = line.split(" ");
                     switch (parts[0]) {
@@ -176,7 +169,7 @@ public class ClientMain {
                                 else if (guesses == 0 && !isGuessed)
                                     toServer.println("lost");
                             } catch (ArrayIndexOutOfBoundsException exception) {
-                                System.out.println("ERROR - Invalid format.");
+                                System.err.println("ERROR - Invalid format.");
                                 continue;
                             }
                             break;
@@ -217,12 +210,13 @@ public class ClientMain {
                                 isLogged = false;
                             break;
                         default:
-                            System.out.println("ERROR - Invalid action.");
+                            System.err.println("ERROR - Invalid action.");
                             continue;
                     }
                 }
             }
         }
+        receiver.stop_1();
         userInput.close();
         socket.close();
         multiSocket.close();

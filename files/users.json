@@ -9,11 +9,11 @@
     "password": "abcd"
   },
   {
-    "currentWinStreak": 1,
+    "currentWinStreak": 2,
     "maxWinStreak": 3,
-    "numberOfMatches": 39,
-    "numberOfWins": 9,
-    "averageTries": 4.17,
+    "numberOfMatches": 40,
+    "numberOfWins": 10,
+    "averageTries": 3.85,
     "username": "user2",
     "password": "foo"
   },

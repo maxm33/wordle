@@ -43,7 +43,7 @@ public class Player implements Runnable {
 
     private synchronized boolean login(String username, String password, int guessLimit) throws IOException {
         if (accountList.isRegistered(username, password)) {
-            int index = tempList.search(username);
+            int index = tempList.getIndex(username);
             if (index != -1) {
                 TemporaryData x = tempList.get(index);
                 if (x.isLogged) {
@@ -69,7 +69,7 @@ public class Player implements Runnable {
     }
 
     private synchronized boolean logout() throws IOException {
-        int index = tempList.search(this.username);
+        int index = tempList.getIndex(this.username);
         if (index != -1) {
             TemporaryData x = tempList.get(index);
             x.isLogged = false;

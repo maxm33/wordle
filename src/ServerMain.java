@@ -19,8 +19,12 @@ import java.util.stream.Stream;
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
+class BooleanFlag {
+  public boolean flag = true;
+}
+
 public class ServerMain {
-  private static BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+  public static BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
   public static String word;
 
   // method to generate a new random word
@@ -72,7 +76,7 @@ public class ServerMain {
 
     // starting the user input reader
     BooleanFlag guard = new BooleanFlag();
-    InputReader inputReader = new InputReader(stdin, accountList, guard);
+    InputReader inputReader = new InputReader(accountList, guard);
     inputReader.start();
 
     // to manage the connection with threads in pool
@@ -95,15 +99,15 @@ public class ServerMain {
       }
     }
     stdin.close();
-    server.close();
     for (Socket x : socketList)
       x.close();
+    server.close();
     threadpool.shutdown();
     try {
       if (!threadpool.awaitTermination(10, TimeUnit.SECONDS)) {
         threadpool.shutdownNow();
         if (!threadpool.awaitTermination(10, TimeUnit.SECONDS))
-          System.err.println("Pool did not terminate.");
+          System.err.println("Threadpool did not terminate.");
       }
     } catch (InterruptedException ex) {
       threadpool.shutdownNow();

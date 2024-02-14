@@ -128,91 +128,89 @@ public class ClientMain {
 
             // game menu
             System.out.printf(
-                    "\n************************\nHi %s!\nThis is what you can do:\n1) guess <word>\n2) skip (counts as a loss)\n3) stats\n4) sharings (to show notifications)\n5) logout\n\nGuesses remaining: %s\n************************\n\n",
+                    "\n************************\nHi %s!\nThis is what you can do:\n- guess <word>\n- skip (counts as a loss)\n- stats\n- sharings (to show notifications)\n- logout\n\nGuesses remaining: %s\n************************\n\n",
                     username, guesses);
 
             while (guesses > 0 && isLogged && !isGuessed) {
-                while (userInput.ready()) {
-                    line = userInput.readLine();
-                    String[] parts = line.split(" ");
-                    switch (parts[0]) {
-                        case "guess":
-                            try {
-                                if (!checkWord(parts[1], dictionary)) {
-                                    System.out.println("ERROR - Word is not in vocabulary.");
-                                    continue;
-                                }
-                                guesses--;
-                                toServer.println("guess," + parts[1]);
-                                System.out.printf("\n");
-                                for (int i = 0; i < parts[1].length(); i++)
-                                    System.out.printf("%s  ", parts[1].charAt(i));
-                                System.out.printf("\n");
-                                line = fromServer.readLine();
-                                System.out.printf("%s\n\n", line);
-                                line = fromServer.readLine();
-
-                                if (line.contentEquals("true")) {
-                                    isGuessed = true;
-                                    toServer.println("won," + Integer.toString(guessLimit - guesses));
-                                    System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
-                                    response = userInput.readLine();
-                                    if (response.contentEquals("y")) {
-                                        toServer.println(
-                                                "share," + username + "," + parts[1] + ","
-                                                        + Integer.toString(guessLimit - guesses));
-                                        System.out.println("Notification sent.");
-                                    } else
-                                        System.out.println("Alright then...keep your secrets...");
-                                } else if (guesses > 0)
-                                    System.out.printf("Guesses remaining: %s\n\n", guesses);
-                                else if (guesses == 0 && !isGuessed)
-                                    toServer.println("lost");
-                            } catch (ArrayIndexOutOfBoundsException exception) {
-                                System.err.println("ERROR - Invalid format.");
+                line = userInput.readLine();
+                String[] parts = line.split(" ");
+                switch (parts[0]) {
+                    case "guess":
+                        try {
+                            if (!checkWord(parts[1], dictionary)) {
+                                System.out.println("ERROR - Word is not in vocabulary.");
                                 continue;
                             }
-                            break;
-                        case "skip":
-                            System.out.println("Word skipped.");
-                            toServer.println("lost");
-                            isGuessed = true;
+                            guesses--;
+                            toServer.println("guess," + parts[1]);
+                            System.out.printf("\n");
+                            for (int i = 0; i < parts[1].length(); i++)
+                                System.out.printf("%s  ", parts[1].charAt(i));
+                            System.out.printf("\n");
+                            line = fromServer.readLine();
+                            System.out.printf("%s\n\n", line);
+                            line = fromServer.readLine();
+
+                            if (line.contentEquals("true")) {
+                                isGuessed = true;
+                                toServer.println("won," + Integer.toString(guessLimit - guesses));
+                                System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
+                                response = userInput.readLine();
+                                if (response.contentEquals("y")) {
+                                    toServer.println(
+                                            "share," + username + "," + parts[1] + ","
+                                                    + Integer.toString(guessLimit - guesses));
+                                    System.out.println("Notification sent.");
+                                } else
+                                    System.out.println("Alright then...keep your secrets...");
+                            } else if (guesses > 0)
+                                System.out.printf("Guesses remaining: %s\n\n", guesses);
+                            else if (guesses == 0 && !isGuessed)
+                                toServer.println("lost");
+                        } catch (ArrayIndexOutOfBoundsException exception) {
+                            System.err.println("ERROR - Invalid format.");
                             continue;
-                        case "stats":
-                            toServer.println("stats");
-                            response = fromServer.readLine();
-                            String[] stats = response.split(",");
-                            float percentage = 0;
-                            if (Float.parseFloat(stats[1]) != 0)
-                                percentage = (Float.parseFloat(stats[2]) / Float.parseFloat(stats[1])) * 100;
-                            percentage *= 100;
-                            percentage = Math.round(percentage);
-                            percentage /= 100;
-                            System.out.printf(
-                                    "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %s\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %s\n\n",
-                                    stats[0], stats[1], stats[2], percentage, stats[3], stats[4],
-                                    stats[5]);
-                            break;
-                        case "sharings":
-                            System.out.println("Retrieving notifications...");
-                            for (int i = 0; i < notificationList.size(); i++) {
-                                System.out.println(notificationList.get(i));
-                                notificationList.remove(i);
-                            }
-                            System.out.println("Done.\n");
-                            break;
-                        case "logout":
-                            toServer.println("logout");
-                            response = fromServer.readLine();
-                            System.out.println(response);
-                            response = fromServer.readLine();
-                            if (response.contentEquals("true"))
-                                isLogged = false;
-                            break;
-                        default:
-                            System.err.println("ERROR - Invalid action.");
-                            continue;
-                    }
+                        }
+                        break;
+                    case "skip":
+                        System.out.println("Word skipped.");
+                        toServer.println("lost");
+                        guesses = 0;
+                        continue;
+                    case "stats":
+                        toServer.println("stats");
+                        response = fromServer.readLine();
+                        String[] stats = response.split(",");
+                        float percentage = 0;
+                        if (Float.parseFloat(stats[1]) != 0)
+                            percentage = (Float.parseFloat(stats[2]) / Float.parseFloat(stats[1])) * 100;
+                        percentage *= 100;
+                        percentage = Math.round(percentage);
+                        percentage /= 100;
+                        System.out.printf(
+                                "\nusername: %s\n# of matches: %s\n# of wins: %s\nwin percentage: %s\ncurrent win streak: %s\nmax win streak: %s\naverage tries per win: %s\n\n",
+                                stats[0], stats[1], stats[2], percentage, stats[3], stats[4],
+                                stats[5]);
+                        break;
+                    case "sharings":
+                        System.out.println("Retrieving notifications...");
+                        for (int i = 0; i < notificationList.size(); i++) {
+                            System.out.println(notificationList.get(i));
+                            notificationList.remove(i);
+                        }
+                        System.out.println("Done.\n");
+                        break;
+                    case "logout":
+                        toServer.println("logout");
+                        response = fromServer.readLine();
+                        System.out.println(response);
+                        response = fromServer.readLine();
+                        if (response.contentEquals("true"))
+                            isLogged = false;
+                        break;
+                    default:
+                        System.err.println("ERROR - Invalid action.");
+                        continue;
                 }
             }
         }

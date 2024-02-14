@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Receiver extends Thread {
     private AtomicBoolean active = new AtomicBoolean(true);
-    public ArrayList<String> received;
+    private ArrayList<String> received;
     private MulticastSocket socket;
 
     public Receiver(ArrayList<String> list, MulticastSocket socket) {

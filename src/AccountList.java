@@ -15,13 +15,6 @@ class Account {
 
 public class AccountList extends ArrayList<Account> {
 
-    public int search(String username) {
-        for (int i = 0; i < this.size(); i++)
-            if (this.get(i).username.contentEquals(username))
-                return i;
-        return -1;
-    }
-
     public boolean isRegistered(String username, String password) {
         for (Account x : this)
             if (x.username.contentEquals(username) && x.password.contentEquals(password))
@@ -29,16 +22,22 @@ public class AccountList extends ArrayList<Account> {
         return false;
     }
 
+    public int getIndex(String username) {
+        for (int i = 0; i < this.size(); i++)
+            if (this.get(i).username.contentEquals(username))
+                return i;
+        return -1;
+    }
+
     public Account getAccount(String username) {
-        for (Account x : this) {
+        for (Account x : this)
             if (x.username.contentEquals(username))
                 return x;
-        }
         return null;
     }
 
     public synchronized void hasWon(String username, int tries) {
-        int index = search(username);
+        int index = getIndex(username);
         if (index != -1) {
             Account x = this.get(index);
             x.currentWinStreak++;
@@ -58,7 +57,7 @@ public class AccountList extends ArrayList<Account> {
     }
 
     public synchronized void hasLost(String username, int tries) {
-        int index = search(username);
+        int index = getIndex(username);
         if (index != -1) {
             Account x = this.get(index);
             x.numberOfMatches++;
@@ -76,7 +75,7 @@ public class AccountList extends ArrayList<Account> {
 
     public void print() {
         System.out.println("*****************************************");
-        for (Account x : this) {
+        for (Account x : this)
             System.out.printf(
                     "username: %s - matches: %s - wins: %s - curWS: %s - maxWS: %s - avgtries: %s\n",
                     x.username,
@@ -85,7 +84,6 @@ public class AccountList extends ArrayList<Account> {
                     x.currentWinStreak,
                     x.maxWinStreak,
                     x.averageTries);
-        }
         System.out.println("*****************************************");
     }
 }

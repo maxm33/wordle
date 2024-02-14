@@ -9,12 +9,11 @@ import com.google.gson.GsonBuilder;
 
 public class InputReader extends Thread {
     private File file = new File("files/users.json");
-    private BufferedReader stdin;
-    public AccountList list;
-    public BooleanFlag guard;
+    private BufferedReader stdin = ServerMain.stdin;
+    private AccountList list;
+    private BooleanFlag guard;
 
-    public InputReader(BufferedReader inp, AccountList list, BooleanFlag guard) {
-        this.stdin = inp;
+    public InputReader(AccountList list, BooleanFlag guard) {
         this.list = list;
         this.guard = guard;
     }

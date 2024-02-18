@@ -52,7 +52,6 @@ public class AccountList extends ArrayList<Account> {
             } else
                 x.averageTries = tries;
             x.numberOfWins++;
-            this.set(index, x);
         }
     }
 
@@ -69,7 +68,6 @@ public class AccountList extends ArrayList<Account> {
                 x.averageTries /= 100;
             } else
                 x.averageTries = tries;
-            this.set(index, x);
         }
     }
 

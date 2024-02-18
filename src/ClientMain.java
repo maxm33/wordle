@@ -83,9 +83,7 @@ public class ClientMain {
                     toServer.println("login," + username + "," + password);
                     response = fromServer.readLine();
                     System.out.println(response);
-                    response = fromServer.readLine();
-                    if (response.contentEquals("true"))
-                        isLogged = true;
+                    isLogged = Boolean.parseBoolean(fromServer.readLine());
                     break;
                 case "exit":
                     toServer.println("exit, , ");
@@ -149,10 +147,9 @@ public class ClientMain {
                             System.out.printf("\n");
                             line = fromServer.readLine();
                             System.out.printf("%s\n\n", line);
-                            line = fromServer.readLine();
+                            isGuessed = Boolean.parseBoolean(fromServer.readLine());
 
-                            if (line.contentEquals("true")) {
-                                isGuessed = true;
+                            if (isGuessed) {
                                 toServer.println("won," + Integer.toString(guessLimit - guesses));
                                 System.out.println("\nYOU HAVE WON!! Do you want to share it with everybody? y/n");
                                 response = userInput.readLine();
@@ -204,9 +201,7 @@ public class ClientMain {
                         toServer.println("logout");
                         response = fromServer.readLine();
                         System.out.println(response);
-                        response = fromServer.readLine();
-                        if (response.contentEquals("true"))
-                            isLogged = false;
+                        isLogged = Boolean.parseBoolean(fromServer.readLine());
                         break;
                     default:
                         System.err.println("ERROR - Invalid action.");

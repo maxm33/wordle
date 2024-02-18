@@ -30,12 +30,9 @@ public class TemporaryList extends ArrayList<TemporaryData> {
     }
 
     public synchronized void decrementGuesses(String username) {
-        int index = this.getIndex(username);
-        if (index != -1) {
-            TemporaryData x = this.get(index);
-            x.guesses--;
-            this.set(index, x);
-        }
+        int index = getIndex(username);
+        if (index != -1)
+            this.get(index).guesses--;
     }
 
     public boolean hasGuessed(String username) {
@@ -47,20 +44,14 @@ public class TemporaryList extends ArrayList<TemporaryData> {
 
     public synchronized void hasWon(String username) {
         int index = getIndex(username);
-        if (index != -1) {
-            TemporaryData x = this.get(index);
-            x.isGuessed = true;
-            this.set(index, x);
-        }
+        if (index != -1)
+            this.get(index).isGuessed = true;
     }
 
     public synchronized void hasLost(String username) {
         int index = getIndex(username);
-        if (index != -1) {
-            TemporaryData x = this.get(index);
-            x.guesses = 0;
-            this.set(index, x);
-        }
+        if (index != -1)
+            this.get(index).guesses = 0;
     }
 
     public synchronized void reset(int guessLimit) {

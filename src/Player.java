@@ -51,7 +51,6 @@ public class Player implements Runnable {
                     return false;
                 }
                 x.isLogged = true;
-                tempList.set(index, x);
                 this.username = username;
                 this.isLogged = true;
                 toClient.println("OK - login successful!");
@@ -73,7 +72,6 @@ public class Player implements Runnable {
         if (index != -1) {
             TemporaryData x = tempList.get(index);
             x.isLogged = false;
-            tempList.set(index, x);
             this.isLogged = false;
             toClient.println("OK - logout successful. Bye!");
             return true;
@@ -98,11 +96,10 @@ public class Player implements Runnable {
                         break;
                     case "login":
                         if (login(data[1], data[2], guessLimit)) {
-                            toClient.println("true");
+                            toClient.println(true);
                             this.isLogged = true;
-                            tempList.print(); ////////////////////////////////// testing
                         } else
-                            toClient.println("false");
+                            toClient.println(false);
                         break;
                     case "exit":
                         System.out.println("Client disconnected.");
@@ -147,21 +144,17 @@ public class Player implements Runnable {
                         }
                         toClient.println(hint);
                         if (word.contentEquals(data[1]))
-                            toClient.println("true");
+                            toClient.println(true);
                         else
-                            toClient.println("false");
+                            toClient.println(false);
                         break;
                     case "won":
                         accountList.hasWon(this.username, Integer.parseInt(data[1]));
                         tempList.hasWon(this.username);
-                        tempList.print(); ////////////////////////////////// testing
-                        accountList.print(); ////////////////////////////////// testing
                         break;
                     case "lost":
                         accountList.hasLost(this.username, guessLimit);
                         tempList.hasLost(this.username);
-                        tempList.print(); ////////////////////////////////// testing
-                        accountList.print(); ////////////////////////////////// testing
                         break;
                     case "info":
                         toClient.println(tempList.getGuesses(this.username) + "," + tempList.hasGuessed(this.username));
@@ -179,11 +172,10 @@ public class Player implements Runnable {
                         multiSocket.send(dp);
                         break;
                     case "logout":
-                        if (logout()) {
-                            toClient.println("true");
-                            tempList.print(); ////////////////////////////////// testing
-                        } else
-                            toClient.println("false");
+                        if (logout())
+                            toClient.println(true);
+                        else
+                            toClient.println(false);
                         break;
                 }
             }

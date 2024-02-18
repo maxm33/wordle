@@ -10,11 +10,13 @@ import com.google.gson.GsonBuilder;
 public class InputReader extends Thread {
     private File file = new File("files/users.json");
     private BufferedReader stdin = ServerMain.stdin;
-    private AccountList list;
+    private AccountList alist;
+    private TemporaryList tlist;
     private BooleanFlag guard;
 
-    public InputReader(AccountList list, BooleanFlag guard) {
-        this.list = list;
+    public InputReader(AccountList alist, TemporaryList tlist, BooleanFlag guard) {
+        this.alist = alist;
+        this.tlist = tlist;
         this.guard = guard;
     }
 
@@ -27,7 +29,7 @@ public class InputReader extends Thread {
                     case "savestate":
                         System.out.println("Saving server state...");
                         String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
-                                .toJson(list);
+                                .toJson(alist);
                         BufferedWriter printerJSON = new BufferedWriter(new FileWriter(file));
                         printerJSON.write(json);
                         printerJSON.close();
@@ -42,6 +44,10 @@ public class InputReader extends Thread {
                             stdin.close();
                         } else
                             System.out.println("Aborted.");
+                        break;
+                    case "printlist":
+                        tlist.print();
+                        alist.print();
                         break;
                     default:
                         System.err.println("ERROR - Invalid action.");

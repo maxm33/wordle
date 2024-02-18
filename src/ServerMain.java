@@ -25,7 +25,7 @@ class BooleanFlag {
 
 public class ServerMain {
   public static BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
-  public static String word;
+  public static volatile String word;
 
   // method to generate a new random word
   private static void generateWord(String dictionary) throws IOException {
@@ -76,7 +76,7 @@ public class ServerMain {
 
     // starting the user input reader
     BooleanFlag guard = new BooleanFlag();
-    InputReader inputReader = new InputReader(accountList, guard);
+    InputReader inputReader = new InputReader(accountList, tempList, guard);
     inputReader.start();
 
     // to manage the connection with threads in pool

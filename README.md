@@ -1,6 +1,7 @@
 # Wordle
 
-**_Please read "Project_description.pdf" to learn about the project_**
+> [!IMPORTANT]
+> Please read &ensp;_Project_description.pdf_&ensp; to learn about the project.
 
 ## Usage
 

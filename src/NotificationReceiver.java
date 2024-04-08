@@ -8,12 +8,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Receiver extends Thread {
+public class NotificationReceiver extends Thread {
     private AtomicBoolean active = new AtomicBoolean(true);
     private ArrayList<String> received;
     private MulticastSocket socket;
 
-    public Receiver(ArrayList<String> list, MulticastSocket socket) {
+    public NotificationReceiver(ArrayList<String> list, MulticastSocket socket) {
         this.received = list;
         this.socket = socket;
     }

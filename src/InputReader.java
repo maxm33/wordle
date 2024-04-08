@@ -9,7 +9,7 @@ import com.google.gson.GsonBuilder;
 
 public class InputReader extends Thread {
     private File file = new File("files/users.json");
-    private BufferedReader stdin = ServerMain.stdin;
+    private BufferedReader stdin = Server.stdin;
     private AccountList alist;
     private TemporaryList tlist;
     private BooleanFlag guard;

@@ -12,7 +12,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Properties;
 
-public class ClientMain {
+public class Client {
     private static BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
     private static BufferedReader fromServer;
     private static PrintWriter toServer;
@@ -42,7 +42,6 @@ public class ClientMain {
         return false;
     }
 
-    @SuppressWarnings("resource")
     public static void main(String[] args) throws IOException, UnknownHostException {
         // loading properties
         FileReader config = new FileReader("files/config.config");
@@ -103,7 +102,7 @@ public class ClientMain {
         ArrayList<String> notificationList = new ArrayList<String>();
 
         // starting the notification receiver
-        Receiver receiver = new Receiver(notificationList, multiSocket);
+        NotificationReceiver receiver = new NotificationReceiver(notificationList, multiSocket);
         receiver.start();
 
         int guesses;

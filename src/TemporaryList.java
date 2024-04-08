@@ -3,7 +3,7 @@ package src;
 import java.util.ArrayList;
 
 class TemporaryData {
-    public String username, word = ServerMain.word;
+    public String username, word = Server.word;
     public boolean isLogged = true, isGuessed = false;
     public int guesses;
 

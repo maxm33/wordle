@@ -103,16 +103,8 @@ public class Server {
       x.close();
     server.close();
     threadpool.shutdown();
-    try {
-      if (!threadpool.awaitTermination(10, TimeUnit.SECONDS)) {
-        threadpool.shutdownNow();
-        if (!threadpool.awaitTermination(10, TimeUnit.SECONDS))
-          System.err.println("Threadpool did not terminate.");
-      }
-    } catch (InterruptedException ex) {
+    if (!threadpool.awaitTermination(10, TimeUnit.SECONDS))
       threadpool.shutdownNow();
-      Thread.currentThread().interrupt();
-    }
     System.out.println("Server is offline.");
   }
 }

@@ -135,7 +135,7 @@ public class Client {
                     case "guess":
                         try {
                             if (!checkWord(parts[1], dictionary)) {
-                                System.out.println("ERROR - Word is not in vocabulary.");
+                                System.err.println("ERROR - Word is not in vocabulary.");
                                 continue;
                             }
                             guesses--;

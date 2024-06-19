@@ -108,12 +108,7 @@ public class GameManager implements Runnable {
                         break;
                 }
             }
-        } catch (IOException e) {
-            System.err.println("Client forced to disconnect.");
-            return;
-        }
 
-        try {
             // setup multicast settings
             int portMulticast = Integer.parseInt(prop.getProperty("port_multicast"));
             int TTL = Integer.parseInt(prop.getProperty("time_to_live"));
@@ -179,12 +174,13 @@ public class GameManager implements Runnable {
                 }
             }
         } catch (IOException e) {
-            // if client crashes, calls logout() for him
             System.err.println("Client forced to disconnect.");
-            try {
-                logout();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
+            if (this.isLogged) {
+                try {
+                    logout();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
             }
         }
     }

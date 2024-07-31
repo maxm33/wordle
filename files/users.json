@@ -1,0 +1,38 @@
+[
+  {
+    "currentWinStreak": 0,
+    "maxWinStreak": 6,
+    "numberOfMatches": 202,
+    "numberOfWins": 39,
+    "averageTries": 3.29,
+    "username": "user1",
+    "password": "abcd"
+  },
+  {
+    "currentWinStreak": 2,
+    "maxWinStreak": 3,
+    "numberOfMatches": 40,
+    "numberOfWins": 10,
+    "averageTries": 3.85,
+    "username": "user2",
+    "password": "foo"
+  },
+  {
+    "currentWinStreak": 2,
+    "maxWinStreak": 2,
+    "numberOfMatches": 96,
+    "numberOfWins": 29,
+    "averageTries": 4.63,
+    "username": "user3",
+    "password": "bob"
+  },
+  {
+    "currentWinStreak": 0,
+    "maxWinStreak": 0,
+    "numberOfMatches": 0,
+    "numberOfWins": 0,
+    "averageTries": 0.0,
+    "username": "user4",
+    "password": "abcd"
+  }
+]

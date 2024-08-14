@@ -42,13 +42,13 @@ public class TemporaryList extends ArrayList<TemporaryData> {
         return false;
     }
 
-    public synchronized void hasWon(String username) {
+    public synchronized void onWinning(String username) {
         int index = getIndex(username);
         if (index != -1)
             this.get(index).isGuessed = true;
     }
 
-    public synchronized void hasLost(String username) {
+    public synchronized void onLosing(String username) {
         int index = getIndex(username);
         if (index != -1)
             this.get(index).guesses = 0;

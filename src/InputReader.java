@@ -8,7 +8,7 @@ import java.io.IOException;
 import com.google.gson.GsonBuilder;
 
 public class InputReader extends Thread {
-    private File file = new File("files/users.json");
+    private File file = new File("files/database.json");
     private BufferedReader stdin = Server.stdin;
     private AccountList alist;
     private TemporaryList tlist;

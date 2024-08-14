@@ -44,7 +44,7 @@ public class Client {
 
     public static void main(String[] args) throws IOException, UnknownHostException {
         // loading properties
-        FileReader config = new FileReader("files/config.config");
+        FileReader config = new FileReader("files/.config");
         Properties prop = new Properties();
         prop.load(config);
         // setup client params

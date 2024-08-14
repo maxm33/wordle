@@ -36,7 +36,7 @@ public class AccountList extends ArrayList<Account> {
         return null;
     }
 
-    public synchronized void hasWon(String username, int tries) {
+    public synchronized void onWinning(String username, int tries) {
         int index = getIndex(username);
         if (index != -1) {
             Account x = this.get(index);
@@ -55,7 +55,7 @@ public class AccountList extends ArrayList<Account> {
         }
     }
 
-    public synchronized void hasLost(String username, int tries) {
+    public synchronized void onLosing(String username, int tries) {
         int index = getIndex(username);
         if (index != -1) {
             Account x = this.get(index);

@@ -143,12 +143,12 @@ public class GameManager implements Runnable {
                             toClient.println(false);
                         break;
                     case "won":
-                        accountList.hasWon(this.username, Integer.parseInt(data[1]));
-                        tempList.hasWon(this.username);
+                        accountList.onWinning(this.username, Integer.parseInt(data[1]));
+                        tempList.onWinning(this.username);
                         break;
                     case "lost":
-                        accountList.hasLost(this.username, guessLimit);
-                        tempList.hasLost(this.username);
+                        accountList.onLosing(this.username, guessLimit);
+                        tempList.onLosing(this.username);
                         break;
                     case "info":
                         toClient.println(tempList.getGuesses(this.username) + "," + tempList.hasGuessed(this.username));

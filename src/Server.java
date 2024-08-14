@@ -36,12 +36,12 @@ public class Server {
     Stream<String> selecting_lines = Files.lines(Paths.get(dictionary));
     word = selecting_lines.skip(selectedLine).findFirst().get();
     selecting_lines.close();
-    System.out.println(word); ////////////////////////////////// testing
+    System.out.println("#DEV Solution: " + word); ////////////////////// testing
   }
 
   public static void main(String[] args) throws Exception {
     // loading properties
-    FileReader config = new FileReader("files/config.config");
+    FileReader config = new FileReader("files/.config");
     Properties prop = new Properties();
     prop.load(config);
     // setup server params
@@ -59,7 +59,7 @@ public class Server {
     TemporaryList tempList = new TemporaryList();
     AccountList accountList = new AccountList();
     // restore all accounts data, if any
-    File file = new File("files/users.json");
+    File file = new File("files/database.json");
     if (!file.createNewFile()) {
       JsonReader reader = new JsonReader(new FileReader(file));
       reader.beginArray();

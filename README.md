@@ -1,9 +1,13 @@
 # Wordle
 
-This is the final project for Laboratory 3 course.
+This was the final assignment for Laboratory 3 course.
+
+<br>
 
 > [!IMPORTANT]
-> Please read &ensp;_Project_description.pdf_&ensp; to learn about the project.
+> Please read &ensp;_Project_description.pdf_&ensp; to learn about the assignment.
+
+<br>
 
 ## Usage
 

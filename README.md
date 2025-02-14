@@ -28,3 +28,9 @@ java -cp ./lib/gson-2.10.1.jar:. src.Server
 ```
 java src.Client
 ```
+
+<br>
+
+## Example
+
+![Alt text](blob/test_example.png)

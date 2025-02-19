@@ -82,7 +82,7 @@ public class GameManager implements Runnable {
         }
     }
 
-    @SuppressWarnings({ "CallToPrintStackTrace", "deprecation" })
+    @SuppressWarnings("deprecation")
     @Override
     public void run() {
         String message;
@@ -185,7 +185,6 @@ public class GameManager implements Runnable {
                 try {
                     logout();
                 } catch (IOException e1) {
-                    e1.printStackTrace();
                 }
             }
         }

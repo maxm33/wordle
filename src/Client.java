@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -42,7 +43,7 @@ public class Client {
         return false;
     }
 
-    @SuppressWarnings({ "deprecation", "resource" })
+    @SuppressWarnings("deprecation")
     public static void main(String[] args) throws IOException, UnknownHostException {
         Socket socket = null;
         MulticastSocket multiSocket = null;
@@ -212,13 +213,13 @@ public class Client {
             }
             receiver.stop_1();
         } catch (NullPointerException e) {
+        } catch (SocketException e) {
+            System.err.println("\nServer is offline. Try again later.");
         } finally {
-            if (socket != null && !socket.isClosed()) {
+            if (socket != null && !socket.isClosed())
                 socket.close();
-            }
-            if (multiSocket != null && !multiSocket.isClosed()) {
+            if (multiSocket != null && !multiSocket.isClosed())
                 multiSocket.close();
-            }
         }
     }
 }

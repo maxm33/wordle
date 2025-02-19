@@ -29,13 +29,14 @@ public class Server {
 
   // method to generate a new random word
   private static void generateWord(String dictionary) throws IOException {
-    Stream<String> counting_lines = Files.lines(Paths.get(dictionary));
-    int numlines = (int) counting_lines.count();
-    counting_lines.close();
+    int numlines;
+    try (Stream<String> counting_lines = Files.lines(Paths.get(dictionary))) {
+      numlines = (int) counting_lines.count();
+    }
     int selectedLine = (int) (Math.random() * (numlines + 1));
-    Stream<String> selecting_lines = Files.lines(Paths.get(dictionary));
-    word = selecting_lines.skip(selectedLine).findFirst().get();
-    selecting_lines.close();
+    try (Stream<String> selecting_lines = Files.lines(Paths.get(dictionary))) {
+      word = selecting_lines.skip(selectedLine).findFirst().get();
+    }
     System.out.println("#DEV Solution: " + word); ////////////////////// testing
   }
 
@@ -51,57 +52,58 @@ public class Server {
     int guessLimit = Integer.parseInt(prop.getProperty("guessLimit"));
     String dictionary = prop.getProperty("dictionary");
 
-    ServerSocket server = new ServerSocket(port); // request/response connection
-    server.setSoTimeout(timeoutAccept); // timeout accept()
+    ExecutorService threadpool;
+    try (ServerSocket server = new ServerSocket(port) // request/response connection
+    ) {
+      server.setSoTimeout(timeoutAccept); // timeout accept()
+      threadpool = Executors.newCachedThreadPool();
+      TemporaryList tempList = new TemporaryList();
+      AccountList accountList = new AccountList();
 
-    ExecutorService threadpool = Executors.newCachedThreadPool();
-
-    TemporaryList tempList = new TemporaryList();
-    AccountList accountList = new AccountList();
-    // restore all accounts data, if any
-    File file = new File("files/database.json");
-    if (!file.createNewFile()) {
-      JsonReader reader = new JsonReader(new FileReader(file));
-      reader.beginArray();
-      while (reader.hasNext()) {
-        Account account = new Gson().fromJson(reader, Account.class);
-        accountList.add(account);
+      // restore all accounts data, if any
+      File file = new File("files/database.json");
+      if (!file.createNewFile()) {
+        JsonReader reader = new JsonReader(new FileReader(file));
+        reader.beginArray();
+        while (reader.hasNext()) {
+          Account account = new Gson().fromJson(reader, Account.class);
+          accountList.add(account);
+        }
+        reader.endArray();
+        reader.close();
       }
-      reader.endArray();
-      reader.close();
-    }
 
-    generateWord(dictionary); // first word is generated
-    long whenWordIsGenerated = System.currentTimeMillis();
+      generateWord(dictionary); // first word is generated
+      long whenWordIsGenerated = System.currentTimeMillis();
 
-    // starting the user input reader
-    BooleanFlag guard = new BooleanFlag();
-    InputReader inputReader = new InputReader(accountList, tempList, guard);
-    inputReader.start();
+      // starting the user input reader
+      BooleanFlag guard = new BooleanFlag();
+      InputReader inputReader = new InputReader(accountList, tempList, guard);
+      inputReader.start();
 
-    // to manage the connection with threads in pool
-    ArrayList<Socket> socketList = new ArrayList<Socket>();
-
-    System.out.println("Server is running...");
-    while (guard.flag) {
-      try {
-        Socket socket = server.accept(); // waiting new players to connect
-        socketList.add(socket);
-        threadpool.execute(new GameManager(socket, prop, tempList, accountList));
-        System.out.println("Client connected!");
-      } catch (SocketTimeoutException so) {
-      } finally {
-        if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) { // every 5 mins
-          generateWord(dictionary);
-          tempList.reset(guessLimit);
-          whenWordIsGenerated = System.currentTimeMillis();
+      // to manage the connection with threads in pool
+      ArrayList<Socket> socketList = new ArrayList<>();
+      System.out.println("Server is running...");
+      while (guard.flag) {
+        try {
+          Socket socket = server.accept(); // waiting new players to connect
+          socketList.add(socket);
+          threadpool.execute(new GameManager(socket, prop, tempList, accountList));
+          System.out.println("Client connected!");
+        } catch (SocketTimeoutException so) {
+        } finally {
+          if (System.currentTimeMillis() - whenWordIsGenerated > timeoutWord) { // every 5 mins
+            generateWord(dictionary);
+            tempList.reset(guessLimit);
+            whenWordIsGenerated = System.currentTimeMillis();
+          }
         }
       }
+      stdin.close();
+      for (Socket x : socketList)
+        x.close();
     }
-    stdin.close();
-    for (Socket x : socketList)
-      x.close();
-    server.close();
+
     threadpool.shutdown();
     if (!threadpool.awaitTermination(10, TimeUnit.SECONDS))
       threadpool.shutdownNow();

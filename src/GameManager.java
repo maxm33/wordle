@@ -11,14 +11,15 @@ import java.net.Socket;
 import java.util.Properties;
 
 public class GameManager implements Runnable {
-    private BufferedReader fromClient;
-    private PrintWriter toClient;
+    private final BufferedReader fromClient;
+    private final PrintWriter toClient;
 
-    private AccountList accountList; // account list shared between threads
-    private TemporaryList tempList; // temporary data list shared between threads
+    private final AccountList accountList; // account list shared between threads
+    private final TemporaryList tempList; // temporary data list shared between threads
+    private final Properties prop;
+
     private String username; // the logged user's username
     private boolean isLogged = false;
-    private Properties prop;
 
     public GameManager(Socket socket, Properties properties, TemporaryList tempList,
             AccountList accountList)
@@ -81,6 +82,8 @@ public class GameManager implements Runnable {
         }
     }
 
+    @SuppressWarnings({ "CallToPrintStackTrace", "deprecation" })
+    @Override
     public void run() {
         String message;
         int guessLimit = Integer.parseInt(this.prop.getProperty("guessLimit"));
@@ -88,24 +91,24 @@ public class GameManager implements Runnable {
         try {
             while (!this.isLogged) {
                 message = fromClient.readLine();
+                if (message == null)
+                    throw new IOException();
+
                 String[] data = message.split(",");
                 switch (data[0]) {
-                    case "register":
-                        register(data[1], data[2]);
-                        break;
-                    case "login":
+                    case "register" -> register(data[1], data[2]);
+                    case "login" -> {
                         if (login(data[1], data[2], guessLimit)) {
                             toClient.println(true);
                             this.isLogged = true;
                         } else
                             toClient.println(false);
-                        break;
-                    case "exit":
+                    }
+                    case "exit" -> {
                         System.out.println("Client disconnected.");
                         return;
-                    default:
-                        toClient.println("Invalid command.");
-                        break;
+                    }
+                    default -> toClient.println("Invalid command.");
                 }
             }
 
@@ -116,65 +119,68 @@ public class GameManager implements Runnable {
 
             // entering multicast group
             InetAddress multiAddr = InetAddress.getByName(addressMulticast);
-            MulticastSocket multiSocket = new MulticastSocket(portMulticast);
-            multiSocket.setTimeToLive(TTL);
-            multiSocket.joinGroup(multiAddr);
+            try (MulticastSocket multiSocket = new MulticastSocket(portMulticast)) {
+                multiSocket.setTimeToLive(TTL);
+                multiSocket.joinGroup(multiAddr);
 
-            // mananging requests in game process
-            while (this.isLogged) {
-                message = fromClient.readLine();
-                String[] data = message.split(",");
-                switch (data[0]) {
-                    case "guess":
-                        tempList.decrementGuesses(this.username);
-                        String word = Server.word, hint = new String();
-                        for (int i = 0; i < word.length(); i++) {
-                            if (word.charAt(i) == data[1].charAt(i))
-                                hint = hint + "+  ";
-                            else if (word.indexOf(data[1].charAt(i)) != -1)
-                                hint = hint + "?  ";
+                // mananging requests in game process
+                while (this.isLogged) {
+                    message = fromClient.readLine();
+                    if (message == null)
+                        throw new IOException();
+
+                    String[] data = message.split(",");
+                    switch (data[0]) {
+                        case "guess" -> {
+                            tempList.decrementGuesses(this.username);
+                            String word = Server.word, hint = new String();
+                            for (int i = 0; i < word.length(); i++) {
+                                if (word.charAt(i) == data[1].charAt(i))
+                                    hint = hint + "+  ";
+                                else if (word.indexOf(data[1].charAt(i)) != -1)
+                                    hint = hint + "?  ";
+                                else
+                                    hint = hint + "X  ";
+                            }
+                            toClient.println(hint);
+                            if (word.contentEquals(data[1]))
+                                toClient.println(true);
                             else
-                                hint = hint + "X  ";
+                                toClient.println(false);
                         }
-                        toClient.println(hint);
-                        if (word.contentEquals(data[1]))
-                            toClient.println(true);
-                        else
-                            toClient.println(false);
-                        break;
-                    case "won":
-                        accountList.onWinning(this.username, Integer.parseInt(data[1]));
-                        tempList.onWinning(this.username);
-                        break;
-                    case "lost":
-                        accountList.onLosing(this.username, guessLimit);
-                        tempList.onLosing(this.username);
-                        break;
-                    case "info":
-                        toClient.println(tempList.getGuesses(this.username) + "," + tempList.hasGuessed(this.username));
-                        break;
-                    case "stats":
-                        Account x = accountList.getAccount(this.username);
-                        toClient.println(x.username + "," + x.numberOfMatches + "," + x.numberOfWins + ","
-                                + x.currentWinStreak + "," + x.maxWinStreak + "," + x.averageTries);
-                        break;
-                    case "share":
-                        String notification = data[1] + " has guessed the word '" + data[2] + "' with " + data[3]
-                                + " attempts.";
-                        DatagramPacket dp = new DatagramPacket(notification.getBytes(), notification.length(),
-                                multiAddr, portMulticast);
-                        multiSocket.send(dp);
-                        break;
-                    case "logout":
-                        if (logout())
-                            toClient.println(true);
-                        else
-                            toClient.println(false);
-                        break;
+                        case "won" -> {
+                            accountList.onWinning(this.username, Integer.parseInt(data[1]));
+                            tempList.onWinning(this.username);
+                        }
+                        case "lost" -> {
+                            accountList.onLosing(this.username, guessLimit);
+                            tempList.onLosing(this.username);
+                        }
+                        case "info" -> toClient
+                                .println(tempList.getGuesses(this.username) + "," + tempList.hasGuessed(this.username));
+                        case "stats" -> {
+                            Account x = accountList.getAccount(this.username);
+                            toClient.println(x.username + "," + x.numberOfMatches + "," + x.numberOfWins + ","
+                                    + x.currentWinStreak + "," + x.maxWinStreak + "," + x.averageTries);
+                        }
+                        case "share" -> {
+                            String notification = data[1] + " has guessed the word '" + data[2] + "' with " + data[3]
+                                    + " attempts.";
+                            DatagramPacket dp = new DatagramPacket(notification.getBytes(), notification.length(),
+                                    multiAddr, portMulticast);
+                            multiSocket.send(dp);
+                        }
+                        case "logout" -> {
+                            if (logout())
+                                toClient.println(true);
+                            else
+                                toClient.println(false);
+                        }
+                    }
                 }
             }
         } catch (IOException e) {
-            System.err.println("Client forced to disconnect.");
+            System.err.println("Client disconnected.");
             if (this.isLogged) {
                 try {
                     logout();

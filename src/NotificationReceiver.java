@@ -9,15 +9,16 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NotificationReceiver extends Thread {
-    private AtomicBoolean active = new AtomicBoolean(true);
-    private ArrayList<String> received;
-    private MulticastSocket socket;
+    private final AtomicBoolean active = new AtomicBoolean(true);
+    private final ArrayList<String> received;
+    private final MulticastSocket socket;
 
     public NotificationReceiver(ArrayList<String> list, MulticastSocket socket) {
         this.received = list;
         this.socket = socket;
     }
 
+    @Override
     public void run() {
         while (active.get()) {
             try {
